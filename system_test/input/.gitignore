@@ -1,0 +1,4 @@
+# Do not commit output files to the repository
+*
+# Keep this file
+!.gitignore
