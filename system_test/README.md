@@ -5,12 +5,12 @@ Contains the base SystemTest class and command line handling.
 #### Usage
 `python systemtest.py <arguments>`
 #### Required arguments:
---input, -i    = Name of the configuration JSON file
+* --input, -i    = Name of the configuration JSON file
 #### Optional arguments:
---output, -o    = Name of the root of the output directory, where the output JSON file is written
---version, -v   = Boss API version
---domain, -d    = Boss domain name
---quiet, -q     = Flag to suppress certain print statements
+* --output, -o    = Name of the root of the output directory, where the output JSON file is written
+* --version, -v   = Boss API version
+* --domain, -d    = Boss domain name
+* --quiet, -q     = Flag to suppress certain print statements
 
 #### input/
 Location of configuration JSON files.  Each file contains the JSON input for one or more of the classes,
@@ -43,7 +43,7 @@ Location for documentation of the system test class files.
 #### output/
 Location of the output file(s) produced by running the system tests.  Each run produces a subdirectory based on the
 timestamp when the system tests began, and this subdirectory contains an output JSON file for every individual
-systemtest that was performed.
+systemtest that was performed. (Example: "output/2016_11_03_21_46_06/NameOfTestClass")
 Note that even if multiple system test classes were configured in the same configuration JSON file, the outputs will
 be written to separate files, one for each class.
 

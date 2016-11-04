@@ -50,7 +50,7 @@ class BossCutoutSystemTest(sys_test_boss.BossSystemTest):
                 self.assertIn(len(test_params[key]), (2,3), 'Improper length for {0}'.format(key))
                 vals = test_params[key]
             self.assertLess(vals[0], vals[1], 'Improperly formatted {0}, "start"" must be less than "stop"')
-        # Parent method BossSystemTest.setUp assigns self._remote and self._channel:
+        # Parent method assigns self._channel:
         super(BossCutoutSystemTest, self).validate_params(test_params)
         self.assertIsNotNone(self._remote)
         self.assertIsNotNone(self._channel)

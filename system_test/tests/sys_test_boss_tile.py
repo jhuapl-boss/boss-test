@@ -57,7 +57,7 @@ class BossTileSystemTest(sys_test_boss.BossSystemTest):
             elif not isinstance(test_params[key], int):
                 self.assertIsInstance(test_params[key], list, 'Improper type for {0}'.format(key))
                 self.assertIn(len(test_params[key]), (1,3), 'Improper length for {0}'.format(key))
-        # Parent method BossSystemTest.setUp assigns self._remote and self._channel:
+        # Parent method assigns self._channel:
         super(BossTileSystemTest, self).validate_params(test_params)
         self.assertIsNotNone(self._remote)
         self.assertIsNotNone(self._channel)
@@ -124,11 +124,10 @@ class BossTileSystemTest(sys_test_boss.BossSystemTest):
                     str(resolution), str(x_idx), str(y_idx), str(z_idx), str("" if not t_idx else t_idx)]))
             tick = time.time()
             obj = boss_test_utils.get_obj(self._remote, self.result['url'], accept)
-            # print(obj)
             self.result['duration'].append(time.time() - tick)
             self.result['status_code'] = obj.status_code
             self.assertTrue(obj.ok, 'Bad request: {0}'.format(obj.reason))
-            self.assertNotIn(obj.status_code, [404, 500, 504], 'Received error status {0}'.format(obj.status_code))
+            # self.assertNotIn(obj.status_code, [404, 500, 504], 'Received error status {0}'.format(obj.status_code))
         if len(self.result['duration']) == 1:
             self.result['duration'] = self.result['duration'][0]
         return obj
