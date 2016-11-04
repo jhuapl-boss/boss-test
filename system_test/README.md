@@ -2,15 +2,21 @@
 
 #### systemtest.py
 Contains the base SystemTest class and command line handling.
-#### Usage
+
+## Usage
 `python systemtest.py <arguments>`
+
 #### Required arguments:
 * --input, -i    = Name of the configuration JSON file
+
 #### Optional arguments:
 * --output, -o    = Name of the root of the output directory, where the output JSON file is written
 * --version, -v   = Boss API version
 * --domain, -d    = Boss domain name
 * --quiet, -q     = Flag to suppress certain print statements
+
+---
+## Directory structure
 
 #### input/
 Location of configuration JSON files.  Each file contains the JSON input for one or more of the classes,
