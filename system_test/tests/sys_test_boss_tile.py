@@ -19,8 +19,6 @@ import re
 import systemtest
 import requests
 import time
-from ndio.ndresource.boss.resource import *
-from ndio.remote.boss.remote import Remote
 from utils import boss_test_utils, plot_utils
 from tests import sys_test_boss
 
@@ -47,14 +45,14 @@ class BossTileSystemTest(sys_test_boss.BossSystemTest):
             keys.append('t_idx')  # t_idx is optional
         for key in keys:
             self.assertIn(key, test_params, 'Missing parameter {0}'.format(key))
-            if isinstance(test_params[key], str):
-                if is_constant_range:
-                    fail_msg = 'Improperly formatted {0}, expected single "value"'.format(key)
-                    self.assertRegexpMatches(test_params[key], '^[0-9]+?$', fail_msg)
-                else:
-                    fail_msg = 'Improperly formatted {0}, expected "index" or "start:stop:delta"'.format(key)
-                    self.assertRegexpMatches(test_params[key], '^[0-9]+(:[0-9]+:[0-9]+)?$', fail_msg)
-            elif not isinstance(test_params[key], int):
+            # if isinstance(test_params[key], str):
+            #     if is_constant_range:
+            #         fail_msg = 'Improperly formatted {0}, expected single "value"'.format(key)
+            #         self.assertRegexpMatches(test_params[key], '^[0-9]+?$', fail_msg)
+            #     else:
+            #         fail_msg = 'Improperly formatted {0}, expected "index" or "start:stop:delta"'.format(key)
+            #         self.assertRegexpMatches(test_params[key], '^[0-9]+(:[0-9]+:[0-9]+)?$', fail_msg)
+            if not isinstance(test_params[key], int):
                 self.assertIsInstance(test_params[key], list, 'Improper type for {0}'.format(key))
                 self.assertIn(len(test_params[key]), (1,3), 'Improper length for {0}'.format(key))
         # Parent method assigns self._channel:
@@ -126,7 +124,7 @@ class BossTileSystemTest(sys_test_boss.BossSystemTest):
             obj = boss_test_utils.get_obj(self._remote, self.result['url'], accept)
             self.result['duration'].append(time.time() - tick)
             self.result['status_code'] = obj.status_code
-            self.assertTrue(obj.ok, 'Bad request: {0}'.format(obj.reason))
+            self.assertTrue(obj.ok, '(Bad request: {0})'.format(obj.reason))
             # self.assertNotIn(obj.status_code, [404, 500, 504], 'Received error status {0}'.format(obj.status_code))
         if len(self.result['duration']) == 1:
             self.result['duration'] = self.result['duration'][0]

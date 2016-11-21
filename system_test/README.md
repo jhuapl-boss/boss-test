@@ -11,9 +11,13 @@ Contains the base SystemTest class and command line handling.
 
 #### Optional arguments:
 * --output, -o    = Name of the root of the output directory, where the output JSON file is written
-* --version, -v   = Boss API version
-* --domain, -d    = Boss domain name
-* --quiet, -q     = Flag to suppress certain print statements
+* ~~--version, -v   = Boss API version~~ _(Boss API version is 0.7)_
+* ~~--domain, -d    = Boss domain name~~ _(Boss domain is configured through Intern)_
+
+Example:
+> cd boss-test/system_test
+
+> python3 systemtest.py -i input/mytestconfig.json
 
 ---
 ## Directory structure

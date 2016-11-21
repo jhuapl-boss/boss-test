@@ -20,8 +20,6 @@ import re
 import systemtest
 import requests
 import time
-from ndio.ndresource.boss.resource import *
-from ndio.remote.boss.remote import Remote
 from utils import boss_test_utils
 
 
@@ -77,3 +75,7 @@ class BossSystemTest(systemtest.SystemTest):
             else:
                 self._channel = self.default_channel
 
+    # def tearDown(self):
+    #     if self._channel is not type(self).__default_channel:
+    #         boss_test_utils.delete_channel(self._remote, self._channel)
+    #     super(BossSystemTest, self).tearDown()

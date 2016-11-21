@@ -19,8 +19,6 @@ import re
 import systemtest
 import requests
 import time
-from ndio.ndresource.boss.resource import *
-from ndio.remote.boss.remote import Remote
 from utils import boss_test_utils, plot_utils
 from tests import sys_test_boss
 
@@ -49,27 +47,27 @@ class BossImageSystemTest(sys_test_boss.BossSystemTest):
                                 bool(key is 'x_arg' and 'x' not in test_params['orientation']) or \
                                 bool(key is 'y_arg' and 'y' not in test_params['orientation']) or \
                                 bool(key is 'z_arg' and 'z' not in test_params['orientation'])
-            if isinstance(test_params[key], str):
-                if is_constant_range and is_dimension_flat:
-                    fail_msg = 'Improperly formatted {0}, expected single "index"'.format(key)
-                    self.assertRegexpMatches(test_params[key], '^[0-9]+$', fail_msg)
-                elif is_constant_range:
-                    fail_msg = 'Improperly formatted {0}, expected "start:stop"'.format(key)
-                    self.assertRegexpMatches(test_params[key], '^[0-9]+:[0-9]+?$', fail_msg)
-                else:
-                    fail_msg = 'Improperly formatted {0}, expected "start:stop"" or "start:stop:delta"'.format(key)
-                    self.assertRegexpMatches(test_params[key], '^[0-9]+:[0-9]+(:[0-9]+)?$', fail_msg)
-                vals = [int(x) for x in re.split(':', test_params[key])]
+            # if isinstance(test_params[key], str):
+            #     if is_constant_range and is_dimension_flat:
+            #         fail_msg = 'Improperly formatted {0}, expected single "index"'.format(key)
+            #         self.assertRegexpMatches(test_params[key], '^[0-9]+$', fail_msg)
+            #     elif is_constant_range:
+            #         fail_msg = 'Improperly formatted {0}, expected "start:stop"'.format(key)
+            #         self.assertRegexpMatches(test_params[key], '^[0-9]+:[0-9]+?$', fail_msg)
+            #     else:
+            #         fail_msg = 'Improperly formatted {0}, expected "start:stop"" or "start:stop:delta"'.format(key)
+            #         self.assertRegexpMatches(test_params[key], '^[0-9]+:[0-9]+(:[0-9]+)?$', fail_msg)
+            #     vals = [int(x) for x in re.split(':', test_params[key])]
+            # else:
+            if not isinstance(test_params[key],list): test_params[key] = list([test_params[key]])
+            if is_dimension_flat:
+                fail_msg = 'Improperly formatted {0}, expected single index'.format(key)
+                self.assertIn(len(test_params[key]), (1,3), fail_msg)
             else:
-                if not isinstance(test_params[key],list): test_params[key] = list([test_params[key]])
-                if is_dimension_flat:
-                    fail_msg = 'Improperly formatted {0}, expected single "index"'.format(key)
-                    self.assertIn(len(test_params[key]), (1,3), fail_msg)
-                else:
-                    self.assertIn(len(test_params[key]), (2,3), 'Improper length for {0}'.format(key))
-                vals = test_params[key]
+                self.assertIn(len(test_params[key]), (2,3), 'Improper length for {0}'.format(key))
+            vals = test_params[key]
             if not is_dimension_flat:
-                self.assertLess(vals[0], vals[1], 'Improperly formatted {0}, "start"" must be less than "stop"')
+                self.assertLess(vals[0], vals[1], 'Improper {0}, start must be less than stop')
         # Parent method assigns self._channel:
         super(BossImageSystemTest, self).validate_params(test_params)
         self.assertIsNotNone(self._remote)

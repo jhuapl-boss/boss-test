@@ -13,9 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy, re, unittest, systemtest, time, requests
-from ndio.ndresource.boss.resource import *
-from ndio.remote.boss.remote import Remote
+import numpy, unittest, systemtest, time, requests
 from utils import boss_test_utils, plot_utils
 from tests import sys_test_boss
 
@@ -37,19 +35,19 @@ class BossCutoutSystemTest(sys_test_boss.BossSystemTest):
             keys.append('time_range')  # time_range is optional
         for key in keys:
             self.assertIn(key, test_params, 'Missing parameter {0}'.format(key))
-            if isinstance(test_params[key], str):
-                if is_constant_range:
-                    fail_msg = 'Improperly formatted {0}, expected "start:stop"'.format(key)
-                    self.assertRegexpMatches(test_params[key], '^[0-9]+:[0-9]+?$', fail_msg)
-                else:
-                    fail_msg = 'Improperly formatted {0}, expected "start:stop"" or "start:stop:delta"'.format(key)
-                    self.assertRegexpMatches(test_params[key], '^[0-9]+:[0-9]+(:[0-9]+)?$', fail_msg)
-                vals = [int(x) for x in re.split(':', test_params[key])]
-            else:
-                self.assertIsInstance(test_params[key], list, 'Improper type for {0}'.format(key))
-                self.assertIn(len(test_params[key]), (2,3), 'Improper length for {0}'.format(key))
-                vals = test_params[key]
-            self.assertLess(vals[0], vals[1], 'Improperly formatted {0}, "start"" must be less than "stop"')
+            # if isinstance(test_params[key], str):
+            #     if is_constant_range:
+            #         fail_msg = 'Improperly formatted {0}, expected "start:stop"'.format(key)
+            #         self.assertRegexpMatches(test_params[key], '^[0-9]+:[0-9]+?$', fail_msg)
+            #     else:
+            #         fail_msg = 'Improperly formatted {0}, expected "start:stop"" or "start:stop:delta"'.format(key)
+            #         self.assertRegexpMatches(test_params[key], '^[0-9]+:[0-9]+(:[0-9]+)?$', fail_msg)
+            #     vals = [int(x) for x in re.split(':', test_params[key])]
+            # else:
+            self.assertIsInstance(test_params[key], list, 'Improper type for {0}'.format(key))
+            self.assertIn(len(test_params[key]), (2,3), 'Improper length for {0}'.format(key))
+            vals = test_params[key]
+            self.assertLess(vals[0], vals[1], 'Improper {0}, start must be less than stop')
         # Parent method assigns self._channel:
         super(BossCutoutSystemTest, self).validate_params(test_params)
         self.assertIsNotNone(self._remote)
@@ -117,10 +115,10 @@ class BossCutoutSystemTest(sys_test_boss.BossSystemTest):
             if coordinates_list[0][3] is not None:
                 if coordinates_list[0][3][0] != coordinates_list[1][3][0]: self.result['cutout_t'] = []
         for x, y, z, t in coordinates_list:
-            x_str = '{0}:{1}'.format(x[0], x[1])
-            y_str = '{0}:{1}'.format(y[0], y[1])
-            z_str = '{0}:{1}'.format(z[0], z[1])
-            t_str = None if not t else '{0}:{1}'.format(t[0], t[1])
+            # x_str = '{0}:{1}'.format(x[0], x[1])
+            # y_str = '{0}:{1}'.format(y[0], y[1])
+            # z_str = '{0}:{1}'.format(z[0], z[1])
+            # t_str = None if not t else '{0}:{1}'.format(t[0], t[1])
             if 'cutout_x' in self.result: self.result['cutout_x'].append(x[0])
             if 'cutout_y' in self.result: self.result['cutout_y'].append(y[0])
             if 'cutout_z' in self.result: self.result['cutout_z'].append(z[0])
@@ -128,15 +126,13 @@ class BossCutoutSystemTest(sys_test_boss.BossSystemTest):
             self.result['cutout_size'].append((x[1]-x[0])*(y[1]-y[0])*(z[1]-z[0])*max(1,1 if not t else t[1]-t[0]))
             if write_or_read is 'write':
                 data = boss_test_utils.cuboid(self._channel.datatype,
-                                              x[1]-x[0], y[1]-y[0], z[1]-z[0], t[1]-t[0] if t else 0)
+                                              x[1]-x[0], y[1]-y[0], z[1]-z[0], t[1]-t[0] if t else None)
                 tick = time.time()
-                self._remote.cutout_create(self._channel, resolution,
-                                     data=data, x_range=x_str, y_range=y_str, z_range=z_str, time_range=t_str)
+                self._remote.create_cutout(self._channel, resolution, x, y, z, data, t)
                 self.result['duration'].append(time.time() - tick)
             else:
                 tick = time.time()
-                data = self._remote.cutout_get(self._channel, resolution,
-                                     x_range=x_str, y_range=y_str, z_range=z_str, time_range=t_str)
+                data = self._remote.get_cutout(self._channel, resolution, x, y, z, t)
                 self.result['duration'].append(time.time() - tick)
         if len(self.result['duration']) == 1: self.result['duration'] = self.result['duration'][0]
         return data

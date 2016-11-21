@@ -13,21 +13,21 @@ System tests for downloading tiles via the Boss API. The BossTileSystemTest clas
     "coordinate_frame": /* required */
     {
       "name": <string>, /* required */
-      "x_start": <integer>, /* required */
-      "x_stop": <integer>, /* required */
-      "y_start": <integer>, /* required */
-      "y_stop": <integer>, /* required */
-      "z_start": <integer>, /* required */
-      "z_stop": <integer> /* required */
+      "x_start": <int>, /* required */
+      "x_stop": <int>, /* required */
+      "y_start": <int>, /* required */
+      "y_stop": <int>, /* required */
+      "z_start": <int>, /* required */
+      "z_stop": <int> /* required */
     },
     "experiment": /* required */
     {
       "name": <string>, /* required */
-      "max_time_sample": <integer> /* required */
+      "num_time_samples": <int> /* required */
     },
     "channel": /* requred, defines Initial/default channel */
     {
-      "name": <string>, /* required */
+      "name": <string>,
       "datatype": <string> /* required */
     },
     "tile_get_test:[...],
@@ -48,13 +48,13 @@ Performs a single get request for a tile from the channel.
 ```
 "tile_get_test":[
   {
-    "tile_size":<integer>, /* required */
+    "tile_size":<int>, /* required */
     "orientation":<string>, /* required */
-    "x_idx":<integer>,   /* required */
-    "y_idx":<integer>,   /* required */
-    "z_idx":<integer>,   /* required */
-    "t_idx":<integer>,
-    "resolution":<integer>,
+    "x_idx":<int>,   /* required */
+    "y_idx":<int>,   /* required */
+    "z_idx":<int>,   /* required */
+    "t_idx":<int>,
+    "resolution":<int>,
     "accept":<string>,
     "channel":
     {
@@ -81,20 +81,20 @@ Performs a single get request for a tile from the channel, but expects an error 
 ```
 "tile_invalid_test":[
   {
-    "tile_size":<integer>, /* required */
+    "tile_size":<int>, /* required */
     "orientation":<string>, /* required */
-    "x_idx":<integer>,   /* required */
-    "y_idx":<integer>,   /* required */
-    "z_idx":<integer>,   /* required */
-    "t_idx":<integer>,
-    "resolution":<integer>,
+    "x_idx":<int>,   /* required */
+    "y_idx":<int>,   /* required */
+    "z_idx":<int>,   /* required */
+    "t_idx":<int>,
+    "resolution":<int>,
     "accept":<string>,
     "channel":
     {
       "datatype":<string>,
       "name":<string>
     },
-    "status":<integer>
+    "status":<int>
   }
 ]
 ```
@@ -124,13 +124,13 @@ If a "delta" is given for an axis, then each sequential read will translate alon
 ```
 "tile_throughput_size_test":[
   {
-    "tile_size":<string>, /* required */
+    "tile_size":[<int>, <int>, <int>], /* required */
     "orientation":<string>, /* required */
-    "x_idx":<integer>,   /* required */
-    "y_idx":<integer>,   /* required */
-    "z_idx":<integer>,   /* required */
-    "t_idx":<integer>,
-    "resolution":<integer>,
+    "x_idx":<int>,   /* required */
+    "y_idx":<int>,   /* required */
+    "z_idx":<int>,   /* required */
+    "t_idx":<int>,
+    "resolution":<int>,
     "accept":<string>,
     "channel":
     {
@@ -140,7 +140,7 @@ If a "delta" is given for an axis, then each sequential read will translate alon
   }
 ]
 ```
-- *tile_size* = Coordinate scale (pixel dimensions) of a tile's width. Format is "start:stop:delta" for a list of sizes.
+- *tile_size* = Coordinate scale (pixel dimensions) of a tile's width. Format is [start, stop, delta] for a list of sizes, from "start" x "start" to "stop" x "stop".
 - *orientation* = The tile's aligned plane, either "xy", "xz", or "xy".
 - *x_idx* = The tile's x-axis index.
 - *y_idx* = The tile's y-axis index.
@@ -156,13 +156,13 @@ Performs a sequence of requests for different tiles from the channel, expecting 
 ```
 "tile_throughput_cache_miss_test":[
   {
-    "tile_size":<integer>, /* required */
+    "tile_size":<int>, /* required */
     "orientation":<string>, /* required */
-    "x_idx":<integer or string>,   /* required */
-    "y_idx":<integer or string>,   /* required */
-    "z_idx":<integer or string>,   /* required */
-    "t_idx":<integer or string>,
-    "resolution":<integer>,
+    "x_idx":<int> or [<int>, <int>, <int>],   /* required */
+    "y_idx":<int> or [<int>, <int>, <int>],   /* required */
+    "z_idx":<int> or [<int>, <int>, <int>],   /* required */
+    "t_idx":<int> or [<int>, <int>, <int>],
+    "resolution":<int>,
     "accept":<string>,
     "channel":
     {
@@ -174,10 +174,10 @@ Performs a sequence of requests for different tiles from the channel, expecting 
 ```
 - *tile_size* = Coordinate scale (pixel dimensions) of a tile's width.
 - *orientation* = The tile's aligned plane, either "xy", "xz", or "xy".
-- *x_idx* = The tile's x-axis index or indices. Format is "start:stop:delta" for a list of indices.
-- *y_idx* = The tile's y-axis index or indices.
-- *z_idx* = The tile's z-axis index or indices.
-- *t_idx* = The tile's time frame index or indices. If omitted, default is null.
+- *x_idx* = The tile's x-axis index or indices. Format is either a single index or [start, stop, delta] for a list of indices.
+- *y_idx* = The tile's y-axis index or indices. Format is either a single index or [start, stop, delta] for a list of indices.
+- *z_idx* = The tile's z-axis index or indices. Format is either a single index or [start, stop, delta] for a list of indices.
+- *t_idx* = The tile's time frame index or indices. If omitted, default is null. Format is either a single index or [start, stop, delta] for a list of indices.
 - *resolution* = Data resolution.  If omitted, default is 0.
 - *accept* = Image file format.  If omitted, default is "image/png".
 - *channel* = Parameters for setting up a new channel for one system test instance.  If omitted, the class's default channel is used.

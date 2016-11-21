@@ -13,21 +13,21 @@ System tests for downloading images via the Boss API. The BossImageSystemTest cl
     "coordinate_frame": /* required */
     {
       "name": <string>, /* required */
-      "x_start": <integer>, /* required */
-      "x_stop": <integer>, /* required */
-      "y_start": <integer>, /* required */
-      "y_stop": <integer>, /* required */
-      "z_start": <integer>, /* required */
-      "z_stop": <integer> /* required */
+      "x_start": <int>, /* required */
+      "x_stop": <int>, /* required */
+      "y_start": <int>, /* required */
+      "y_stop": <int>, /* required */
+      "z_start": <int>, /* required */
+      "z_stop": <int> /* required */
     },
     "experiment": /* required */
     {
       "name": <string>, /* required */
-      "max_time_sample": <integer> /* required */
+      "num_time_samples": <int> /* required */
     },
     "channel": /* requred, defines Initial/default channel */
     {
-      "name": <string>, /* required */
+      "name": <string>,
       "datatype": <string> /* required */
     },
     "image_get_test:[...],
@@ -49,11 +49,11 @@ Performs a single get request for a image from the channel.
 "image_get_test":[
   {
     "orientation":<string>, /* required */
-    "x_arg":<integer or string>,   /* required */
-    "y_arg":<integer or string>,   /* required */
-    "z_arg":<integer or string>,   /* required */
-    "t_index":<integer>,
-    "resolution":<integer>,
+    "x_arg":<int> or [<int>, <int>],   /* required */
+    "y_arg":<int> or [<int>, <int>],   /* required */
+    "z_arg":<int> or [<int>, <int>],   /* required */
+    "t_index":<int>,
+    "resolution":<int>,
     "accept":<string>,
     "channel":
     {
@@ -64,9 +64,9 @@ Performs a single get request for a image from the channel.
 ]
 ```
 - *orientation* = The image's aligned plane, either "xy", "xz", or "xy".
-- *x_arg* = The image's x-axis coordinate(s).  Format is "value" (if flat on this axis) or "start:stop" (if coplanar to this axis).
-- *y_arg* = The image's y-axis coordinate(s).  Format is "value" (if flat on this axis) or "start:stop" (if coplanar to this axis).
-- *z_arg* = The image's z-axis coordinate(s).  Format is "value" (if flat on this axis) or "start:stop" (if coplanar to this axis).
+- *x_arg* = The image's x-axis coordinate(s).  Format is a single value (if flat on this axis) or [start, stop] (if coplanar to this axis).
+- *y_arg* = The image's y-axis coordinate(s).  Format is a single value (if flat on this axis) or [start, stop] (if coplanar to this axis).
+- *z_arg* = The image's z-axis coordinate(s).  Format is a single value (if flat on this axis) or [start, stop] (if coplanar to this axis).
 - *t_index* = The image's time frame index. If omitted, default is null.
 - *resolution* = Data resolution.  If omitted, default is 0.
 - *accept* = Image file format.  If omitted, default is "image/png".
@@ -80,25 +80,25 @@ Performs a single get request for a image from the channel, but expects an error
 "image_invalid_test":[
   {
     "orientation":<string>, /* required */
-    "x_arg":<integer or string>,   /* required */
-    "y_arg":<integer or string>,   /* required */
-    "z_arg":<integer or string>,   /* required */
-    "t_index":<integer>,
-    "resolution":<integer>,
+    "x_arg":<int> or [<int>, <int>],   /* required */
+    "y_arg":<int> or [<int>, <int>],   /* required */
+    "z_arg":<int> or [<int>, <int>],   /* required */
+    "t_index":<int>,
+    "resolution":<int>,
     "accept":<string>,
     "channel":
     {
       "datatype":<string>,
       "name":<string>
     },
-    "status":<integer>
+    "status":<int>
   }
 ]
 ```
 - *orientation* = The image's aligned plane, either "xy", "xz", or "xy".
-- *x_arg* = The image's x-axis coordinate(s).  Format is "value" (if flat on this axis) or "start:stop" (if coplanar to this axis).
-- *y_arg* = The image's y-axis coordinate(s).  Format is "value" (if flat on this axis) or "start:stop" (if coplanar to this axis).
-- *z_arg* = The image's z-axis coordinate(s).  Format is "value" (if flat on this axis) or "start:stop" (if coplanar to this axis).
+- *x_arg* = The image's x-axis coordinate(s).  Format is a single value (if flat on this axis) or [start, stop] (if coplanar to this axis).
+- *y_arg* = The image's y-axis coordinate(s).  Format is a single value (if flat on this axis) or [start, stop] (if coplanar to this axis).
+- *z_arg* = The image's z-axis coordinate(s).  Format is a single value (if flat on this axis) or [start, stop] (if coplanar to this axis).
 - *t_index* = The image's time frame index. If omitted, default is null.
 - *resolution* = Data resolution.  If omitted, default is 0.
 - *accept* = Image file format.  If omitted, default is "image/png".
@@ -121,11 +121,11 @@ Because some of the region is cached on each operation, Boss should encounter a 
 "image_throughput_size_test":[
   {
     "orientation":<string>, /* required */
-    "x_arg":<integer or string>,   /* required */
-    "y_arg":<integer or string>,   /* required */
-    "z_arg":<integer or string>,   /* required */
-    "t_index":<integer>,
-    "resolution":<integer>,
+    "x_arg":<int> or [<int>, <int>] or [<int>, <int>, <int>],   /* required */
+    "y_arg":<int> or [<int>, <int>] or [<int>, <int>, <int>],   /* required */
+    "z_arg":<int> or [<int>, <int>] or [<int>, <int>, <int>],   /* required */
+    "t_index":<int>,
+    "resolution":<int>,
     "accept":<string>,
     "channel":
     {
@@ -136,9 +136,9 @@ Because some of the region is cached on each operation, Boss should encounter a 
 ]
 ```
 - *orientation* = The image's aligned plane, either "xy", "xz", or "xy".
-- *x_arg* = The image's x-axis coordinate(s).  Format is "value" (if flat on this axis) or "start:stop" (if coplanar to this axis) or "start:stop:delta" to increment.
-- *y_arg* = The image's y-axis coordinate(s).  Format is either "value", "start:stop", or "start:stop:delta".
-- *z_arg* = The image's z-axis coordinate(s).  Format is either "value", "start:stop", or "start:stop:delta".
+- *x_arg* = The image's x-axis coordinate(s).  Format is a single value (if flat on this axis) or [start, stop] (if coplanar to this axis), or [start, stop, delta] to increment.
+- *y_arg* = The image's y-axis coordinate(s).  Format is a single value (if flat on this axis) or [start, stop] (if coplanar to this axis), or [start, stop, delta] to increment.
+- *z_arg* = The image's z-axis coordinate(s).  Format is a single value (if flat on this axis) or [start, stop] (if coplanar to this axis), or [start, stop, delta] to increment.
 - *t_index* = The image's time frame index. If omitted, default is null.
 - *resolution* = Data resolution.  If omitted, default is 0.
 - *accept* = Image file format.  If omitted, default is "image/png".
@@ -151,11 +151,11 @@ Performs a sequence of requests for different images from the channel, expecting
 "image_throughput_cache_miss_test":[
   {
     "orientation":<string>, /* required */
-    "x_arg":<integer or string>,   /* required */
-    "y_arg":<integer or string>,   /* required */
-    "z_arg":<integer or string>,   /* required */
-    "t_index":<integer or string>,
-    "resolution":<integer>,
+    "x_arg":<int> or [<int>, <int>] or [<int>, <int>, <int>],   /* required */
+    "y_arg":<int> or [<int>, <int>] or [<int>, <int>, <int>],   /* required */
+    "z_arg":<int> or [<int>, <int>] or [<int>, <int>, <int>],   /* required */
+    "t_index":<int> or [<int>, <int>, <int>],
+    "resolution":<int>,
     "accept":<string>,
     "channel":
     {
@@ -166,10 +166,10 @@ Performs a sequence of requests for different images from the channel, expecting
 ]
 ```
 - *orientation* = The image's aligned plane, either "xy", "xz", or "xy".
-- *x_arg* = The image's x-axis coordinate(s).  Format is "value" (if flat on this axis) or "start:stop" (if coplanar to this axis) or "start:stop:delta" to increment.
-- *y_arg* = The image's y-axis coordinate(s).  Format is either "value", "start:stop", or "start:stop:delta".
-- *z_arg* = The image's z-axis coordinate(s).  Format is either "value", "start:stop", or "start:stop:delta".
-- *t_index* = The image's time frame index or indices. Format is either "value" or "start:stop:delta". If omitted, default is null.
+- *x_arg* = The image's x-axis coordinate(s).  Format is a single value (if flat on this axis) or [start, stop] (if coplanar to this axis), or [start, stop, delta] to increment.
+- *y_arg* = The image's y-axis coordinate(s).  Format is a single value (if flat on this axis) or [start, stop] (if coplanar to this axis), or [start, stop, delta] to increment.
+- *z_arg* = The image's z-axis coordinate(s).  Format is a single value (if flat on this axis) or [start, stop] (if coplanar to this axis), or [start, stop, delta] to increment.
+- *t_index* = The image's time frame index or indices. Format is either single value or [start, stop, delta]. If omitted, default is null.
 - *resolution* = Data resolution.  If omitted, default is 0.
 - *accept* = Image file format.  If omitted, default is "image/png".
 - *channel* = Parameters for setting up a new channel for one system test instance.  If omitted, the class's default channel is used.
