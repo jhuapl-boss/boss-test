@@ -1,0 +1,7 @@
+unittest
+intern
+numpy
+requests
+boto3
+jsmin
+matplotlib
