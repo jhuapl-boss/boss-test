@@ -12,11 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import sys, time, unittest, os
-import argparse
+import argparse, sys, time, unittest
+from os import path
+from requests import HTTPError
 from collections import OrderedDict
 from utils import json_utils, boss_test_utils
+
+# AUTO_PLOT = True
+AUTO_PLOT = False
 
 
 class SystemTest(unittest.TestCase):
@@ -24,9 +27,9 @@ class SystemTest(unittest.TestCase):
 
     # Static class attributes
     _class_config = None             # From the JSON configuration for this class
-    _class_results = OrderedDict()   # Static list of test outputs of all tests in this class
-    _output_file = None              # Where to write the test outputs
     _parser_args = None              # Values from the initial command line arguments (from argparse.parse_args)
+    _class_results = OrderedDict()   # Static list of test outputs of all tests in this class
+    _output_file = None             # Where to write the test outputs
 
     # Object attributes
     __test_name = None              # Name of the method for this specific test
@@ -70,18 +73,13 @@ class SystemTest(unittest.TestCase):
             type(self)._class_results[type(self).__name__][self.test_name] = list([])
         output_value = {
             'params': self.parameters,
-            'result': result_value if result_value is not None else self.result
+            'result': result_value if bool(result_value) else self.result
         }
         type(self)._class_results[type(self).__name__][self.test_name].append(output_value)
 
     # The methods below should only be called in child class methods that would override them.
-    def setUp(self):
-        args = self.parser_args
-        if not args.quiet:
-            print('\nTest: {0}'.format(self.test_name))
-
     def tearDown(self):
-        if self.result is not None:
+        if bool(self.result):
             self.add_result(self.result)
 
     @classmethod
@@ -89,7 +87,7 @@ class SystemTest(unittest.TestCase):
         """ When all of the system tests (test methods and their parameterizations) have completed, then get the
         static list of test results for this class and write it to a (JSON) file.
         """
-        if bool(cls._class_results[cls.__name__]) and cls._output_file is not None:
+        if bool(cls._class_results[cls.__name__]) and bool(cls._output_file):
             json_utils.write(cls._class_results[cls.__name__], cls._output_file)
             print('\n{0}: Results saved to {1}'.format(cls.__name__, cls._output_file))
         else:
@@ -98,6 +96,7 @@ class SystemTest(unittest.TestCase):
 # This file should be run from the command line: python systemtest.py <args>
 if __name__ == '__main__':
     # import re
+    from tests import *
     __unittest = True
 
     # Parse the command line arguments
@@ -106,28 +105,29 @@ if __name__ == '__main__':
                         metavar='<file>',
                         help='Required: JSON configuration file name')
     parser.add_argument('--output', '-o',
-                        default='./output',
+                        default='output',
                         help='Optional: Output directory')
-    parser.add_argument('--quiet', '-q',
-                        action='store_true',
-                        help='Optional: Suppress print output')
+    # parser.add_argument('--quiet', '-q',
+    #                     action='store_true',
+    #                     help='Optional: Suppress print output')
     parser.add_argument('--version', '-v',
                         default=boss_test_utils.DEFAULT_VERSION,
                         help='Optional: Boss API version')
     parser.add_argument('--domain', '-d',
-                        default=boss_test_utils.DEFAULT_DOMAIN,
+                        # default=boss_test_utils.DEFAULT_DOMAIN,
                         help='Optional: Domain name')
     parser_args = parser.parse_args()
-    if parser_args.input_file is None:
+    if not bool(parser_args.input_file):
         parser.print_usage()
-        raise Exception('Missing argument: --input_file [-i]')
+        raise Exception('Missing argument: --input-file [-i]')
 
     # Parse the JSON configuration file into a python dictionary
     json_config = json_utils.read(parser_args.input_file)
     start_time = time.gmtime()
-    output_dir = '{0}/{1}_{2:0>2}_{3:0>2}_{4:0>2}_{5:0>2}_{6:0>2}'.format(
+    output_dir = '{0}/{1}/{2}_{3:0>2}_{4:0>2}_{5:0>2}_{6:0>2}_{7:0>2}'.format(
         # Optional command argument: output directory #
-        './output' if not bool(parser_args.output) else parser_args.output,
+        path.dirname(path.realpath(__file__)),
+        'output' if not bool(parser_args.output) else parser_args.output,
         start_time.tm_year,
         start_time.tm_mon,
         start_time.tm_mday,
@@ -135,11 +135,8 @@ if __name__ == '__main__':
         start_time.tm_min,
         start_time.tm_sec)
 
-    # TODO: Find cleaner way of importing classes from "tests" subdirectory.
-    import tests
-    from tests import *
-
     # Parse the JSON configuration file and define the system tests to perform
+    # ToDo: This is disorganized and/or difficult to read
     suite = unittest.TestSuite()
     for class_name in json_config:
         if hasattr(sys.modules[__name__], class_name):
@@ -163,15 +160,40 @@ if __name__ == '__main__':
                         parameters = [parameters]
                     for param in parameters:
                         suite.addTest(cls(keyname, param))
-                        print('added: {0}.{1}'.format(class_name, keyname, param))
-        else:
-            print('Class not recognized: {0}'.format(class_name))
+                        # print('added test: {0}.{1}'.format(class_name, keyname, param))
+
     # Prepare directory for test outputs
     if not os.path.isdir(parser_args.output):
         os.mkdir(parser_args.output)
     if not os.path.isdir(output_dir):
         os.mkdir(output_dir)
+
     # Run the scheduled tests
-    print('Begin system tests at {0}.\nConfiguration file: {1}.\nOutput directory: {2}.\n'.format(
-        time.asctime(start_time), parser_args.input_file, output_dir))
+    # print('Begin system tests at {0}'.format(time.asctime(start_time)))
+    print('Configuration file: {0}'.format(time.asctime(start_time)))
+    print('Output directory: {0}'.format(output_dir))
     results = unittest.TextTestRunner().run(suite)
+    if AUTO_PLOT:
+        from utils import plot_utils
+        plot_utils.read_directory(output_dir)
+
+
+# Custom decorator that designates a method as a system test method
+# Currently does not do anything but we can add features later
+def systemtestmethod(test_method):
+    """Decorator for system test functions. Captures errors and inserts them into the output."""
+    def wrapper(*args, **kwargs):
+        self = args[0]
+        try:
+            test_method(*args, **kwargs)
+        except HTTPError as e:
+            self.result['error'] = str(e)
+            self.result['status'] = str(e.response.status_code)
+            # print(e.request)
+            # print(e.strerror)
+            raise e
+        except Exception as e:
+            # self.result['error'] = str(e)
+            raise e
+    return wrapper
+

@@ -32,14 +32,16 @@ def read(filename: str) -> OrderedDict:
     return json_dict
 
 
-def write(data:dict, filename:str=None):
+def write(data: dict, filename: str=None):
     """Write and save the contents of a python dictionary into a JSON file.
     Args:
         data (dict): The python dict with the data.
         filename (str): The name of the output JSON file where to save the data.
     """
     assert bool(data), "Empty dictionary"
-    data_formatted = json.dumps(OrderedDict(data), ensure_ascii=False, indent=4)
+    data = OrderedDict(data)
+    # print('Writing = {0}'.format(data))
+    data_formatted = json.dumps(data, ensure_ascii=False, indent=4)
     if filename is None:
         print(data_formatted)
     else:
