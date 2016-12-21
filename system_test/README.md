@@ -3,6 +3,11 @@
 #### systemtest.py
 Contains the base SystemTest class and command line handling.
 
+## Setup
+1. Install python (3.5+) on your system
+2. Use git to clone the boss-test repository
+3. Install the requirements (`pip install -r requirements.txt`)
+
 ## Usage
 `python systemtest.py <arguments>`
 

@@ -14,43 +14,33 @@
 # limitations under the License.
 
 import numpy, unittest, systemtest, time, requests
-from utils import boss_test_utils, plot_utils
+from utils import boss_test_utils, numpy_utils, plot_utils
 from tests import sys_test_boss
 
 
 class BossCutoutSystemTest(sys_test_boss.BossSystemTest):
     """ System tests for the Boss cutout service API, testing different write/read patterns.
-    Attributes:
+    Properties (inherited):
         class_config    Static class dictionary (inherited from SystemTest)
         parameters      Parameters of the current test instance (inherited from SystemTest)
         result          Result of the current test instance (inherited from SystemTest)
-        remote          Remote resource (inherited from BossSystemTest)
-        channel         Channel resource (inherited from BossSystemTest)
+    Attributes (inherited):
+        _channel        Channel resource (inherited from BossSystemTest)
     """
 
-    def validate_params(self, test_params, is_constant_range=True):
+    def validate_params(self, test_params: dict, is_constant_range=True):
         """ Validate the test input parameters """
         keys = ['x_range', 'y_range', 'z_range']
         if 'time_range' in test_params:
             keys.append('time_range')  # time_range is optional
         for key in keys:
             self.assertIn(key, test_params, 'Missing parameter {0}'.format(key))
-            # if isinstance(test_params[key], str):
-            #     if is_constant_range:
-            #         fail_msg = 'Improperly formatted {0}, expected "start:stop"'.format(key)
-            #         self.assertRegexpMatches(test_params[key], '^[0-9]+:[0-9]+?$', fail_msg)
-            #     else:
-            #         fail_msg = 'Improperly formatted {0}, expected "start:stop"" or "start:stop:delta"'.format(key)
-            #         self.assertRegexpMatches(test_params[key], '^[0-9]+:[0-9]+(:[0-9]+)?$', fail_msg)
-            #     vals = [int(x) for x in re.split(':', test_params[key])]
-            # else:
             self.assertIsInstance(test_params[key], list, 'Improper type for {0}'.format(key))
             self.assertIn(len(test_params[key]), (2,3), 'Improper length for {0}'.format(key))
             vals = test_params[key]
-            self.assertLess(vals[0], vals[1], 'Improper {0}, start must be less than stop')
+            # self.assertLess(vals[0], vals[1], 'Improper {0}, start must be less than stop')
         # Parent method assigns self._channel:
         super(BossCutoutSystemTest, self).validate_params(test_params)
-        self.assertIsNotNone(self._remote)
         self.assertIsNotNone(self._channel)
 
     def tearDown(self):
@@ -77,66 +67,80 @@ class BossCutoutSystemTest(sys_test_boss.BossSystemTest):
         the test params do not contain 'time_range'. This function generates a list of these tuples-of-tuples, which
         enables it to 'schedule' a sequence of cutout reads or cutout writes.
         """
-        x_vals = boss_test_utils.parse_param_list(params, 'x_range', False)
-        y_vals = boss_test_utils.parse_param_list(params, 'y_range', False)
-        z_vals = boss_test_utils.parse_param_list(params, 'z_range', False)
-        t_vals = boss_test_utils.parse_param_list(params, 'time_range', False) if 'time_range' in params else None
-        translate = [] if not translate_axes else params['translate'].lower()
-        dimlist = []
+        x_vals = numpy_utils.array_range(params['x_range'])
+        y_vals = numpy_utils.array_range(params['y_range'])
+        z_vals = numpy_utils.array_range(params['z_range'])
+        t_vals = numpy_utils.array_range(params['time_range']) if 'time_range' in params else None
+        # translate = [] if not translate_axes else params['translate'].lower()
+        coords_list = []
         # How many cutouts #
         num_cutouts = max(2, len(x_vals), len(y_vals), len(z_vals), 2 if not t_vals else len(t_vals)) - 1
+        num_cutouts = max(2, len(x_vals), len(y_vals), len(z_vals), len(t_vals or [0, 0])) - 1
         # Get a tuple of (start, stop) coordinates along each axis
-        def get_coord_from_array(vals, i, letter_key):
-            vi = vals[0] if len(vals) == 2 else (vals[min(i, len(vals) - 2) if translate_axes else 0])
-            # vi = vals[0] if len(vals) == 2 else (vals[min(i, len(vals) - 2) if letter_key in translate else 0])
-            vj = vals[1] if len(vals) == 2 else vals[min(i + 1, len(vals) - 1)]
-            return (vi, vj) if vi < vj else (vj, vi)
+
+        def get_coords_from_array(vals, j):
+            vi = vals[0] if len(vals) == 2 else (vals[min(j, len(vals) - 2) if translate_axes else 0])
+            vj = vals[1] if len(vals) == 2 else vals[min(j + 1, len(vals) - 1)]
+            return list([vi, vj]) if vi < vj else list([vj, vi])
+
         # Apply to the x, y, z, and t axes for each set of cutout coordinates
         for i in range(0, num_cutouts):
-            xij = get_coord_from_array(x_vals, i, 'x')
-            yij = get_coord_from_array(y_vals, i, 'y')
-            zij = get_coord_from_array(z_vals, i, 'z')
-            tij = get_coord_from_array(t_vals, i, 't') if bool(t_vals) else None
+            xij = get_coords_from_array(x_vals, i)
+            yij = get_coords_from_array(y_vals, i)
+            zij = get_coords_from_array(z_vals, i)
+            tij = get_coords_from_array(t_vals, i) if bool(t_vals) else None
             # Represent as a tuple of (start, stop) tuples, and append to a list #
-            dimlist.append((xij, yij, zij, tij))
-        return dimlist
+            coords_list.append((xij, yij, zij, tij))
+        # numpy_list = numpy.array(coords_list)
+        return coords_list
 
-    def do_cutout_behavior(self, write_or_read:str, coordinates_list:list, resolution=0):
+    def do_cutout_behavior(self, write_or_read: str, coordinates_list: numpy.ndarray, resolution: int=0):
         """ Generic behavior for cutout tests. All of the tests use this pattern.
         """
-        self.result['duration'] = list([])
-        self.result['cutout_size'] = list([])
+        remote = boss_test_utils.get_remote()
+        self.result['cutout_size'] = []
+        self.result['duration'] = []
         data = -1
         # Loop through the different cutouts #
         if len(coordinates_list) > 1:
-            if coordinates_list[0][0][0] != coordinates_list[1][0][0]: self.result['cutout_x'] = []
-            if coordinates_list[0][1][0] != coordinates_list[1][1][0]: self.result['cutout_y'] = []
-            if coordinates_list[0][2][0] != coordinates_list[1][2][0]: self.result['cutout_z'] = []
-            if coordinates_list[0][3] is not None:
-                if coordinates_list[0][3][0] != coordinates_list[1][3][0]: self.result['cutout_t'] = []
+            if coordinates_list[0][0][0] != coordinates_list[1][0][0]:
+                self.result['cutout_x'] = []
+            if coordinates_list[0][1][0] != coordinates_list[1][1][0]:
+                self.result['cutout_y'] = []
+            if coordinates_list[0][2][0] != coordinates_list[1][2][0]:
+                self.result['cutout_z'] = []
+            if bool(coordinates_list[0][3]) and (coordinates_list[0][3][0] != coordinates_list[1][3][0]):
+                self.result['cutout_t'] = []
         for x, y, z, t in coordinates_list:
-            # x_str = '{0}:{1}'.format(x[0], x[1])
-            # y_str = '{0}:{1}'.format(y[0], y[1])
-            # z_str = '{0}:{1}'.format(z[0], z[1])
-            # t_str = None if not t else '{0}:{1}'.format(t[0], t[1])
-            if 'cutout_x' in self.result: self.result['cutout_x'].append(x[0])
-            if 'cutout_y' in self.result: self.result['cutout_y'].append(y[0])
-            if 'cutout_z' in self.result: self.result['cutout_z'].append(z[0])
-            if 'cutout_t' in self.result: self.result['cutout_t'].append(t[0])
-            self.result['cutout_size'].append((x[1]-x[0])*(y[1]-y[0])*(z[1]-z[0])*max(1,1 if not t else t[1]-t[0]))
+            if 'cutout_x' in self.result:
+                self.result['cutout_x'].append(int(x[0]))
+            if 'cutout_y' in self.result:
+                self.result['cutout_y'].append(int(y[0]))
+            if 'cutout_z' in self.result:
+                self.result['cutout_z'].append(int(z[0]))
+            if 'cutout_t' in self.result:
+                self.result['cutout_t'].append(int(t[0]))
+            self.result['cutout_size'].append(int((x[1]-x[0])*(y[1]-y[0])*(z[1]-z[0])*(1 if not t else t[1]-t[0])))
             if write_or_read is 'write':
-                data = boss_test_utils.cuboid(self._channel.datatype,
-                                              x[1]-x[0], y[1]-y[0], z[1]-z[0], t[1]-t[0] if t else None)
+                data = numpy_utils.cuboid(x[1]-x[0], y[1]-y[0], z[1]-z[0],
+                                          None if t is None else t[1]-t[0], self._channel.datatype)
+
                 tick = time.time()
-                self._remote.create_cutout(self._channel, resolution, x, y, z, data, t)
+                remote.create_cutout(self._channel, resolution, x, y, z, data, t)
                 self.result['duration'].append(time.time() - tick)
             else:
                 tick = time.time()
-                data = self._remote.get_cutout(self._channel, resolution, x, y, z, t)
+                data = remote.get_cutout(self._channel, resolution, x, y, z, t)
                 self.result['duration'].append(time.time() - tick)
-        if len(self.result['duration']) == 1: self.result['duration'] = self.result['duration'][0]
+        # if len(self.result['duration']) == 1:
+        #     self.result['duration'] = self.result['duration'][0]
         return data
 
+    # ##############
+    # TEST FUNCTIONS
+    # ##############
+
+    @systemtest.systemtestmethod
     def cutout_write_test(self, params=None):
         """ System test case: Single upload of a data cuboid. Record the duration for write operation to complete.
         """
@@ -149,6 +153,7 @@ class BossCutoutSystemTest(sys_test_boss.BossSystemTest):
         self.do_cutout_behavior('write', coordinates_list, resolution)
         pass
 
+    @systemtest.systemtestmethod
     def cutout_read_test(self, params=None):
         """ System test case: Single download of a data cuboid. Record the duration for read operation to complete.
         """
@@ -158,9 +163,13 @@ class BossCutoutSystemTest(sys_test_boss.BossSystemTest):
         coordinates_list = self.get_coordinates_list(params)
         self.assertEqual(len(coordinates_list), 1, 'Expected fixed cutout dimensions')
         resolution = int(params['resolution']) if 'resolution' in params else 0
+        if ('initialize' in params) and (bool(params['initialize'])):
+            self.do_cutout_behavior('write', coordinates_list, resolution)
+            time.sleep(self.default_write_delay)
         self.do_cutout_behavior('read', coordinates_list, resolution)
         pass
 
+    @systemtest.systemtestmethod
     @unittest.expectedFailure
     def cutout_write_invalid_test(self, params=None):
         """ System test case: Single upload of a data cuboid, expecting some invalid parameter configuration.
@@ -181,6 +190,7 @@ class BossCutoutSystemTest(sys_test_boss.BossSystemTest):
                     raise error
         pass
 
+    @systemtest.systemtestmethod
     @unittest.expectedFailure
     def cutout_read_invalid_test(self, params=None):
         """ System test case: Single download of a data cuboid, expecting some invalid result.
@@ -201,6 +211,7 @@ class BossCutoutSystemTest(sys_test_boss.BossSystemTest):
                     raise error
         pass
 
+    @systemtest.systemtestmethod
     def cutout_match_test(self, params=None):
         """
         """
@@ -216,6 +227,7 @@ class BossCutoutSystemTest(sys_test_boss.BossSystemTest):
         numpy.testing.assert_array_equal(data_write, data_read, 'Mismatched uploaded and downloaded data.', True)
         pass
 
+    @systemtest.systemtestmethod
     def cutout_write_cache_hit_test(self, params=None):
         """
         """
@@ -229,6 +241,7 @@ class BossCutoutSystemTest(sys_test_boss.BossSystemTest):
         self.do_cutout_behavior('write', coordinates_list, resolution)
         pass
 
+    @systemtest.systemtestmethod
     def cutout_read_cache_hit_test(self, params=None):
         """
         """
@@ -239,9 +252,13 @@ class BossCutoutSystemTest(sys_test_boss.BossSystemTest):
         coordinates_list += coordinates_list
         self.assertEqual(len(coordinates_list), 2, 'Expected fixed cutout dimensions')
         resolution = int(params['resolution']) if 'resolution' in params else 0
+        if ('initialize' in params) and (bool(params['initialize'])):
+            self.do_cutout_behavior('write', coordinates_list, resolution)
+            time.sleep(self.default_write_delay)
         self.do_cutout_behavior('read', coordinates_list, resolution)
         pass
 
+    @systemtest.systemtestmethod
     def cutout_write_throughput_size_test(self, params=None):
         """
         """
@@ -249,12 +266,16 @@ class BossCutoutSystemTest(sys_test_boss.BossSystemTest):
             params = self.parameters
         self.validate_params(params, is_constant_range=False)
         coordinates_list = self.get_coordinates_list(params)
-        coordinates_list += coordinates_list
         self.assertGreater(len(coordinates_list), 1, 'Given fixed cutout dimensions, expected changing dimensions')
         resolution = int(params['resolution']) if 'resolution' in params else 0
         self.do_cutout_behavior('write', coordinates_list, resolution)
+        self.result[plot_utils.PLOT_KEY] = {
+            'title': 'Write throughput, growing cutouts',
+            'x': ''
+        }
         pass
 
+    @systemtest.systemtestmethod
     def cutout_read_throughput_size_test(self, params=None):
         """
         """
@@ -262,38 +283,103 @@ class BossCutoutSystemTest(sys_test_boss.BossSystemTest):
             params = self.parameters
         self.validate_params(params, is_constant_range=False)
         coordinates_list = self.get_coordinates_list(params)
-        coordinates_list += coordinates_list
         self.assertGreater(len(coordinates_list), 1, 'Given fixed cutout dimensions, expected changing dimensions')
         resolution = int(params['resolution']) if 'resolution' in params else 0
         self.do_cutout_behavior('read', coordinates_list, resolution)
+        self.result[plot_utils.PLOT_KEY] = {
+            'title': 'Read throughput, growing cutouts',
+            'x': ''
+        }
         pass
 
+    @systemtest.systemtestmethod
+    def cutout_write_throughput_position_test(self, params=None):
+        """
+        """
+        if not params:
+            params = self.parameters
+        self.validate_params(params, is_constant_range=False)
+        coordinates_list = self.get_coordinates_list(params, True)
+        self.assertGreater(len(coordinates_list), 1, 'Given fixed cutout dimensions, expected changing coordinates')
+        resolution = int(params['resolution']) if 'resolution' in params else 0
+        self.do_cutout_behavior('write', coordinates_list, resolution)
+        self.result[plot_utils.PLOT_KEY] = {
+            'title': 'Write throughput, moving cutouts',
+            'x': ''
+        }
+        pass
+
+    @systemtest.systemtestmethod
+    def cutout_read_throughput_position_test(self, params=None):
+        """
+        """
+        if not params:
+            params = self.parameters
+        self.validate_params(params, is_constant_range=False)
+        coordinates_list = self.get_coordinates_list(params, True)
+        self.assertGreater(len(coordinates_list), 1, 'Given fixed cutout dimensions, expected changing coordinates')
+        resolution = int(params['resolution']) if 'resolution' in params else 0
+        self.do_cutout_behavior('read', coordinates_list, resolution)
+        self.result[plot_utils.PLOT_KEY] = {
+            'title': 'Read throughput, moving cutouts',
+            'x': ''
+        }
+        pass
+
+    @systemtest.systemtestmethod
     def cutout_write_throughput_cache_miss_test(self, params=None):
         """
         """
         if not params:
             params = self.parameters
         self.validate_params(params, is_constant_range=False)
-        # self.assertIn('translate', params)
-        # self.assertIsInstance(params['translate'], str)
-        coordinates_list = self.get_coordinates_list(params, True)
-        coordinates_list += coordinates_list
+        coordinates_list = self.get_coordinates_list(params)
         self.assertGreater(len(coordinates_list), 1, 'Given fixed cutout dimensions, expected changing coordinates')
         resolution = int(params['resolution']) if 'resolution' in params else 0
+        ax = ['x_range', 'y_range', 'z_range', 'time_range']
+        for d in range(0, len(ax)):
+            # Determine if we should iterate on this axis
+            if ax[d] in params and len(params[ax[d]]) >= 3:
+                for c in range(1, len(coordinates_list)):
+                    sz = abs(coordinates_list[c][d][1] - coordinates_list[c][d][0])
+                    if coordinates_list[c][d][0] < coordinates_list[c][d][1]:
+                        coordinates_list[c][d][0] = coordinates_list[c-1][d][1]
+                        coordinates_list[c][d][1] = coordinates_list[c][d][0] + sz
+                    else:
+                        coordinates_list[c][d][1] = coordinates_list[c-1][d][0]
+                        coordinates_list[c][d][0] = coordinates_list[c][d][1] - sz
         self.do_cutout_behavior('write', coordinates_list, resolution)
+        self.result[plot_utils.PLOT_KEY] = {
+            'title': 'Write throughput, growing and moving cutouts',
+            'x': ''
+        }
         pass
 
+    @systemtest.systemtestmethod
     def cutout_read_throughput_cache_miss_test(self, params=None):
         """
         """
         if not params:
             params = self.parameters
         self.validate_params(params, is_constant_range=False)
-        # self.assertIn('translate', params)
-        # self.assertIsInstance(params['translate'], str)
-        coordinates_list = self.get_coordinates_list(params, True)
-        coordinates_list += coordinates_list
+        coordinates_list = self.get_coordinates_list(params)
         self.assertGreater(len(coordinates_list), 1, 'Given fixed cutout dimensions, expected changing coordinates')
         resolution = int(params['resolution']) if 'resolution' in params else 0
+        ax = ['x_range', 'y_range', 'z_range', 'time_range']
+        for d in range(0, len(ax)):
+            # Determine if we should iterate on this axis
+            if ax[d] in params and len(params[ax[d]]) >= 3:
+                for c in range(1, len(coordinates_list)):
+                    sz = abs(coordinates_list[c][d][1] - coordinates_list[c][d][0])
+                    if coordinates_list[c][d][0] < coordinates_list[c][d][1]:
+                        coordinates_list[c][d][0] = coordinates_list[c-1][d][1]
+                        coordinates_list[c][d][1] = coordinates_list[c][d][0] + sz
+                    else:
+                        coordinates_list[c][d][1] = coordinates_list[c-1][d][0]
+                        coordinates_list[c][d][0] = coordinates_list[c][d][1] - sz
         self.do_cutout_behavior('read', coordinates_list, resolution)
+        self.result[plot_utils.PLOT_KEY] = {
+            'title': 'Read throughput, growing and moving cutouts',
+            'x': ''
+        }
         pass

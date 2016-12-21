@@ -7,9 +7,8 @@ This directory should contain .py files, which define system test classes. Each 
 A namespace made of parsed command line arguments. Should contain the following:
 * input_file = Name of the configuration JSON file
 * output = Name of the root level of the output directory
-* quiet = Boolean, whether or not to suppress certain print statements
-* version = Boss API version
-* domain = Boss domain name
+~~* version = Boss API version~~
+~~* domain = Boss domain name~~
 
 ### class_config
 A static dictionary variable, loaded from the configuration JSON file, matching the name of the current class. For

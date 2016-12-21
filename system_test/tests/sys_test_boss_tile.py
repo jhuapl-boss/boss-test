@@ -15,25 +15,24 @@
 
 import unittest
 import numpy
-import re
-import systemtest
 import requests
 import time
-from utils import boss_test_utils, plot_utils
+import systemtest
+from utils import boss_test_utils, numpy_utils, plot_utils
 from tests import sys_test_boss
 
 
 class BossTileSystemTest(sys_test_boss.BossSystemTest):
     """ System tests for the Boss tile service API, testing different read patterns.
-    Attributes:
+    Properties (inherited):
         class_config    Static class dictionary (inherited from SystemTest)
         parameters      Parameters of the current test instance (inherited from SystemTest)
         result          Result of the current test instance (inherited from SystemTest)
-        remote          Remote resource (inherited from BossSystemTest)
-        channel         Channel resource (inherited from BossSystemTest)
+    Attributes (inherited):
+        _channel        Channel resource (inherited from BossSystemTest)
     """
     
-    def validate_params(self, test_params, is_constant_range=True):
+    def validate_params(self, test_params: dict, is_constant_range=True):
         """ Validate the test input parameters """
         self.assertIn('orientation', test_params, 'Missing parameter "orientation" (tile orientation)')
         fail_msg = 'Invalid "orientation" value (expects "xy" or "xz" or "yz" only)'
@@ -45,19 +44,11 @@ class BossTileSystemTest(sys_test_boss.BossSystemTest):
             keys.append('t_idx')  # t_idx is optional
         for key in keys:
             self.assertIn(key, test_params, 'Missing parameter {0}'.format(key))
-            # if isinstance(test_params[key], str):
-            #     if is_constant_range:
-            #         fail_msg = 'Improperly formatted {0}, expected single "value"'.format(key)
-            #         self.assertRegexpMatches(test_params[key], '^[0-9]+?$', fail_msg)
-            #     else:
-            #         fail_msg = 'Improperly formatted {0}, expected "index" or "start:stop:delta"'.format(key)
-            #         self.assertRegexpMatches(test_params[key], '^[0-9]+(:[0-9]+:[0-9]+)?$', fail_msg)
             if not isinstance(test_params[key], int):
                 self.assertIsInstance(test_params[key], list, 'Improper type for {0}'.format(key))
-                self.assertIn(len(test_params[key]), (1,3), 'Improper length for {0}'.format(key))
+                self.assertIn(len(test_params[key]), (1, 3), 'Improper length for {0}'.format(key))
         # Parent method assigns self._channel:
         super(BossTileSystemTest, self).validate_params(test_params)
-        self.assertIsNotNone(self._remote)
         self.assertIsNotNone(self._channel)
 
     def tearDown(self):
@@ -74,45 +65,58 @@ class BossTileSystemTest(sys_test_boss.BossSystemTest):
         super(BossTileSystemTest, self).tearDown()
 
     @staticmethod
-    def get_index_list(params:dict):
+    def get_index_list(params: dict):
         """ Parse the range parameters """
-        x_idxs = boss_test_utils.parse_param_list(params, 'x_idx', False)
-        y_idxs = boss_test_utils.parse_param_list(params, 'y_idx', False)
-        z_idxs = boss_test_utils.parse_param_list(params, 'z_idx', False)
-        t_idxs = boss_test_utils.parse_param_list(params, 't_idx', False) if 't_idx' in params else None
-        tile_sizes = boss_test_utils.parse_param_list(params, 'tile_size', False)
+        x_idxs = numpy_utils.array_range(params['x_idx'])
+        y_idxs = numpy_utils.array_range(params['y_idx'])
+        z_idxs = numpy_utils.array_range(params['z_idx'])
+        t_idxs = numpy_utils.array_range(params['t_idx']) if 't_idx' in params else None
+        tile_sizes = numpy_utils.array_range(params['tile_size'])
         idxs_list = []
         # How many tiles? #
-        num_tiles = max(1, len(x_idxs), len(y_idxs), len(z_idxs), 1 if not t_idxs else len(t_idxs), len(tile_sizes))
+        num_tiles = max(1, len(x_idxs), len(y_idxs), len(z_idxs), len(t_idxs or [0]), len(tile_sizes))
+        # num_tiles = max(1, len(x_idxs), len(y_idxs), len(z_idxs), 1 if (t_idxs is None) else len(t_idxs), len(tile_sizes))
         for i in range(0, num_tiles):
             xi = x_idxs[min(i, len(x_idxs)-1)]
             yi = y_idxs[min(i, len(y_idxs)-1)]
             zi = z_idxs[min(i, len(z_idxs)-1)]
-            ti = None if not bool(t_idxs) else t_idxs[min(i, len(t_idxs)-1)]
+            ti = None if (t_idxs is None) else t_idxs[min(i, len(t_idxs)-1)]
             tile_size = tile_sizes[min(i, len(tile_sizes)-1)]
             idxs_list.append((xi, yi, zi, ti if t_idxs else None, tile_size))
         return idxs_list
 
-    def do_tile_behavior(self, index_list:list, orientation, accept:str, resolution=0):
+    def do_tile_behavior(self, index_list: numpy.ndarray, orientation: str, accept: str, resolution: int=0):
         """ Generic behavior for tile tests. All of the tests use this pattern.
         """
-        self.result['duration'] = list([])
+        remote = boss_test_utils.get_remote()
+        self.result['duration'] = []
+        self.result['tile_size'] = []
         obj = None
         if len(index_list) > 1:
-            if index_list[0][0] != index_list[1][0]: self.result['tile_x'] = []
-            if index_list[0][1] != index_list[1][1]: self.result['tile_y'] = []
-            if index_list[0][2] != index_list[1][2]: self.result['tile_z'] = []
-            if index_list[0][3] is not None:
-                if index_list[0][3] != index_list[1][3]: self.result['tile_t'] = []
-            if index_list[0][4] != index_list[1][4]: self.result['tile_size'] = []
+            if index_list[0][0] != index_list[1][0]:
+                self.result['tile_x'] = list([])
+            if index_list[0][1] != index_list[1][1]:
+                self.result['tile_y'] = list([])
+            if index_list[0][2] != index_list[1][2]:
+                self.result['tile_z'] = list([])
+            if bool(index_list[0][3]) and (index_list[0][3] != index_list[1][3]):
+                self.result['tile_t'] = list([])
+            if index_list[0][4] != index_list[1][4]:
+                self.result['tile_size'] = list([])
         for x_idx, y_idx, z_idx, t_idx, tile_size in index_list:
-            if 'tile_x' in self.result: self.result['tile_x'].append(x_idx)
-            if 'tile_y' in self.result: self.result['tile_y'].append(y_idx)
-            if 'tile_z' in self.result: self.result['tile_z'].append(z_idx)
-            if 'tile_t' in self.result: self.result['tile_t'].append(t_idx)
-            if 'tile_size' in self.result: self.result['tile_size'].append(tile_size)
+            if 'tile_x' in self.result:
+                self.result['tile_x'].append(int(x_idx))
+            if 'tile_y' in self.result:
+                self.result['tile_y'].append(int(y_idx))
+            if 'tile_z' in self.result:
+                self.result['tile_z'].append(int(z_idx))
+            if 'tile_t' in self.result:
+                self.result['tile_t'].append(int(t_idx))
+            if 'tile_size' in self.result:
+                self.result['tile_size'].append(int(tile_size))
             self.result['url'] = "https://{0}/v{1}/tile/{2}".format(
-                self.parser_args.domain, self._version,
+                boss_test_utils.get_host(remote),
+                self._version,
                 "/".join([
                     self.class_config['collection']['name'],
                     self.class_config['experiment']['name'],
@@ -121,15 +125,20 @@ class BossTileSystemTest(sys_test_boss.BossSystemTest):
                     str(tile_size),
                     str(resolution), str(x_idx), str(y_idx), str(z_idx), str("" if not t_idx else t_idx)]))
             tick = time.time()
-            obj = boss_test_utils.get_obj(self._remote, self.result['url'], accept)
+            obj = boss_test_utils.get_obj(remote, self.result['url'], accept)
             self.result['duration'].append(time.time() - tick)
             self.result['status_code'] = obj.status_code
             self.assertTrue(obj.ok, '(Bad request: {0})'.format(obj.reason))
             # self.assertNotIn(obj.status_code, [404, 500, 504], 'Received error status {0}'.format(obj.status_code))
-        if len(self.result['duration']) == 1:
-            self.result['duration'] = self.result['duration'][0]
+        # if len(self.result['duration']) == 1:
+        #     self.result['duration'] = self.result['duration'][0]
         return obj
 
+    # ##############
+    # TEST FUNCTIONS
+    # ##############
+
+    @systemtest.systemtestmethod
     def tile_get_test(self, params=None):
         """ System test case: Single download of a tile. Record the duration for read operation to complete.
         """
@@ -143,6 +152,7 @@ class BossTileSystemTest(sys_test_boss.BossSystemTest):
         self.do_tile_behavior(index_list, orientation, format_accept, resolution)
         pass
 
+    @systemtest.systemtestmethod
     @unittest.expectedFailure
     def tile_invalid_test(self, params=None):
         """ System test case: Single download of a tile, expecting some invalid result.
@@ -163,6 +173,7 @@ class BossTileSystemTest(sys_test_boss.BossSystemTest):
                     raise error
         pass
 
+    @systemtest.systemtestmethod
     def tile_cache_hit_test(self, params=None):
         """ System test case:
         """
@@ -178,6 +189,7 @@ class BossTileSystemTest(sys_test_boss.BossSystemTest):
         self.do_tile_behavior(index_list, orientation, format_accept, resolution)
         pass
 
+    @systemtest.systemtestmethod
     def tile_throughput_size_test(self, params=None):
         """ System test case:
         """
@@ -192,6 +204,7 @@ class BossTileSystemTest(sys_test_boss.BossSystemTest):
         self.do_tile_behavior(index_list, orientation, format_accept, resolution)
         pass
 
+    @systemtest.systemtestmethod
     def tile_throughput_cache_miss_test(self, params=None):
         """ System test case:
         """
