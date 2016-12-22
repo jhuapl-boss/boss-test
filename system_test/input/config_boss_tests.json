@@ -1,0 +1,160 @@
+{
+  "BossCutoutSystemTest":
+  {
+    "version":0.7,
+    "collection": {
+      "name": "myCollection"
+    },
+    "coordinate_frame": {
+      "name": "myFrame",
+      "x_start": 0, "x_stop": 1500,
+      "y_start": 0, "y_stop": 1500,
+      "z_start": 0, "z_stop": 1500
+    },
+    "experiment": {
+      "name": "myExperiment", "num_time_samples": 10
+    },
+    "channel": {
+      "name": "myChannel",
+      "datatype": "uint8"
+    },
+    "cutout_write_test":[
+      {"x_range":[200,312], "y_range":[200,312], "z_range":[10,12], "time_range":[2,4]},
+      {"x_range":[0,512], "y_range":[1000,1512], "z_range":[10,12], "time_range":[2,4]}
+    ],
+    "cutout_write_invalid_test":[
+      {"x_range":[10001,10002], "y_range":[200,712], "z_range":[1000,1050], "status":400}
+    ],
+    "cutout_read_invalid_test":[
+      {"x_range":[-100,0], "y_range":[200,712], "z_range":[1000,1050], "status":404}
+    ],
+    "cutout_write_cache_hit_test":[
+      {"x_range":[200,312], "y_range":[200,312], "z_range":[10,12], "time_range":[2,4]},
+      {"x_range":[1000,512], "y_range":[0,1512], "z_range":[10,12], "time_range":[2,4]}
+    ],
+    "cutout_write_throughput_cache_miss_test":[
+      {"x_range":[0,500], "y_range":[0,500], "z_range":[0,200,10]},
+      {"x_range":[501,505], "y_range":[1200,1700,100], "z_range":[1800,1900,20], "time_range":[10,13]}
+    ],
+    "cutout_write_throughput_position_test":[
+      {"x_range":[1200,1700], "y_range":[501,1001], "z_range":[100,200,10]},
+      {"x_range":[501,505], "y_range":[1200,1700,100], "z_range":[1800,1900,20], "time_range":[10,13]}
+    ],
+    "cutout_write_throughput_size_test":[
+      {"x_range":[0,500], "y_range":[0,500], "z_range":[90,200,10]},
+      {"x_range":[400,900,50], "y_range":[0,500], "z_range":[90,95], "time_range":[0,2]},
+      {"x_range":[450,550,10], "y_range":[1450,1550,10], "z_range":[10,15]}
+    ],
+    "cutout_read_cache_hit_test":[
+      {"x_range":[200,312], "y_range":[200,312], "z_range":[10,12], "time_range":[2,4]},
+      {"x_range":[1000,512], "y_range":[0,1512], "z_range":[10,12], "time_range":[2,4]}
+    ],
+    "cutout_read_throughput_size_test":[
+      {"x_range":[0,500], "y_range":[0,500], "z_range":[90,100,2]},
+      {"x_range":[0,500], "y_range":[400,900], "z_range":[90,100,2]}
+    ],
+    "cutout_read_throughput_position_test":[
+      {"x_range":[400,900], "y_range":[0,500], "z_range":[90,100,2]},
+      {"x_range":[0,500], "y_range":[400,900], "z_range":[90,100,2]}
+    ],
+    "cutout_read_test":[
+      {"x_range":[200,712], "y_range":[200,712], "z_range":[1000,1050]},
+      {"x_range":[0,512], "y_range":[1000,1512], "z_range":[10,12], "time_range":[2,4]}
+    ],
+    "cutout_read_throughput_cache_miss_test":[
+      {"x_range":[0,500], "y_range":[0,500], "z_range":[0,200,10]},
+      {"x_range":[1200,1700], "y_range":[501,1001], "z_range":[100,200,10]},
+      {"x_range":[501,505], "y_range":[1200,1500,15], "z_range":[1800,1900], "time_range":[7,9]}
+    ],
+    "cutout_match_test":[
+      {"x_range":[200,712], "y_range":[200,712], "z_range":[10,15], "time_range":[2,4]}
+    ]
+  },
+  /*** sys_test_boss_tile.py ***/
+  "BossTileSystemTest":
+  {
+    "version":0.7,
+    "collection": {
+      "name": "myCollection"
+    },
+    "coordinate_frame": {
+      "name": "myFrame",
+      "x_start": 0, "x_stop": 1500,
+      "y_start": 0, "y_stop": 1500,
+      "z_start": 0, "z_stop": 1500
+    },
+    "experiment": {
+      "name": "myExperiment", "num_time_samples": 10
+    },
+    "channel": {
+      "name": "myChannel",
+      "datatype": "uint8"
+    },
+    "tile_get_test":[
+      {"x_idx":1, "y_idx":2, "z_idx":3, "tile_size":128, "orientation":"xy"},
+      {"x_idx":1, "y_idx":2, "z_idx":3, "t_idx":1, "tile_size":128, "orientation":"xy"}
+    ],
+    "tile_invalid_test":[
+      {"x_idx":1, "y_idx":2, "z_idx":-3, "tile_size":100, "orientation":"xz", "status":400}
+    ],
+    "tile_cache_hit_test":[
+      {"x_idx":1, "y_idx":2, "z_idx":3, "tile_size":128, "orientation":"yz"},
+      {"x_idx":1, "y_idx":2, "z_idx":3, "t_idx":1, "tile_size":128, "orientation":"xy"},
+      {"x_idx":6, "y_idx":1, "z_idx":1, "t_idx":1, "tile_size":512, "orientation":"yz"}
+    ],
+    "tile_throughput_size_test":[
+      {"x_idx":0, "y_idx":0, "z_idx":3, "tile_size":[100,1000,100], "orientation":"xy"},
+      {"x_idx":2, "y_idx":0, "z_idx":0, "tile_size":[10,100,10], "orientation":"yz"},
+      {"x_idx":2, "y_idx":1, "z_idx":3, "t_idx":2, "tile_size":[120,200,10], "orientation":"xy"}
+    ],
+    "tile_throughput_cache_miss_test":[
+      {"x_idx":2, "y_idx":1, "z_idx":[1,6,1], "tile_size":400, "orientation":"xy"},
+      {"x_idx":2, "y_idx":[0,4,1], "z_idx":28, "t_idx":[0,4,1], "tile_size":400, "orientation":"xy"}
+    ]
+  },
+  /*** sys_test_boss_image.py ***/
+  "BossImageSystemTest":
+  {
+    "version":0.7,
+    "collection": {
+      "name": "myCollection"
+    },
+    "coordinate_frame": {
+      "name": "myFrame",
+      "x_start": 0, "x_stop": 1500,
+      "y_start": 0, "y_stop": 1500,
+      "z_start": 0, "z_stop": 1500
+    },
+    "experiment": {
+      "name": "myExperiment", "num_time_samples": 10
+    },
+    "channel": {
+      "name": "myChannel",
+      "datatype": "uint8"
+    },
+    "image_get_test":[
+      {"x_arg":[200,712], "y_arg":[200,712], "z_arg":[99], "orientation":"xy"},
+      {"x_arg":[200,712], "y_arg":999, "z_arg":[40,90], "t_index":3, "orientation":"xz"},
+      {"x_arg":[200,1212], "y_arg":45, "z_arg":[60,80], "orientation":"xz"}
+    ],
+    "image_invalid_test":[
+      {"x_arg":[200,712], "y_arg":1012, "z_arg":[1,0], "t_index":4, "orientation":"xz"}
+    ],
+    "image_cache_hit_test":[
+      {"x_arg":[200,712], "y_arg":45, "z_arg":[20,70], "orientation":"xz"},
+      {"x_arg":[200,712], "y_arg":45, "z_arg":[20,70], "t_index":3, "orientation":"xz"},
+      {"y_arg":[200,1212], "x_arg":45, "z_arg":[60,80], "orientation":"yz"}
+    ],
+    "image_throughput_size_test":[
+      {"x_arg":2, "y_arg":[1,101,10], "z_arg":[3,99,30] ,"orientation":"yz"},
+      {"x_arg":[0,1000,100], "y_arg":[0,1000,100], "z_arg":20, "orientation":"xy"},
+      {"x_arg":[0,1000,100], "y_arg":512, "z_arg":[0,100,10], "orientation":"xz"}
+    ],
+    "image_throughput_cache_miss_test":[
+      {"x_arg":2, "y_arg":[500,700,10], "z_arg":[15, 17] ,"orientation":"yz"},
+      {"x_arg":2, "y_arg":[500,1500,20], "z_arg":[14, 16] ,"orientation":"yz"},
+      {"x_arg":2, "y_arg":[1,101], "t_index":[1,4,1], "z_arg":[3,99] ,"orientation":"yz"}
+    ]
+  }
+
+}
