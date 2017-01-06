@@ -39,8 +39,8 @@ System tests for uploading/downloading cutouts via the Boss API. The BossCutoutS
     "cutout_write_cache_hit_test":[...],
     "cutout_read_throughput_size_test":[...],
     "cutout_write_throughput_size_test":[...],
-    "cutout_read_throughput_cache_miss_test":[...],
-    "cutout_write_throughput_cache_miss_test":[...]
+    "cutout_read_throughput_position_test":[...],
+    "cutout_write_throughput_position_test":[...]
   }
 ```
 
@@ -172,12 +172,12 @@ Because some of the region is cached on each operation, Boss should encounter a 
 Expects the same parameters as *cutout_read_throughput_size_test()*.
 
 ---
-#### cutout_read_throughput_cache_miss_test()
+#### cutout_read_throughput_position_test()
 Sequence of consecutive reads of cutouts along one or more coordinate axes. If a "delta" is given for an axis, then each sequential read will shift along that axis by that amount; the size of the cutout is the same.  For example, if an axis is given "start:stop:delta", then the ranges will be at [start, start+delta], then [start+delta, start+2xdelta], and so on, up to [stop-delta, stop].
 
 This test is expected to traverse a large region of the coordinate frame, eventually forcing Boss to encounter a full cache miss. The duration of each read is recorded.
 ```
-"cutout_read_throughput_cache_miss_test":[
+"cutout_read_throughput_position_test":[
   {
     "x_range":[<int>, <int>] or [<int>, <int>, <int>],   /* required */
     "y_range":[<int>, <int>] or [<int>, <int>, <int>],   /* required */
@@ -200,9 +200,9 @@ This test is expected to traverse a large region of the coordinate frame, eventu
 - *channel* = Parameters for setting up a new channel for one system test instance.  If omitted, the class's default channel is used.
 
 ---
-#### cutout_write_throughput_cache_miss_test()
+#### cutout_write_throughput_position_test()
 Sequence of consecutive uploads of cutouts that translate along one or more coordinate axes. If a "delta" is given for an axis, then each sequential read will shift along that axis by that amount; the size of the cutout is the same.  For example, if an axis is given [start, stop, delta], then the ranges will be at [start, start+delta], then [start+delta, start+2xdelta], and so on, up to [stop-delta, stop].
 
 This test is expected to traverse a large region of the coordinate frame, eventually forcing Boss to encounter a full cache miss. The duration of each write is recorded.
 
-Expects the same parameters as *cutout_read_throughput_cache_miss_test()*.
+Expects the same parameters as *cutout_read_throughput_position_test()*.

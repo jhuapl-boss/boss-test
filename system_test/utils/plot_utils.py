@@ -24,6 +24,7 @@ import matplotlib.pyplot as pyplot
 
 PLOT_KEY = '_PLOT_'
 
+# Todo: Allow y-axis to be list of names, so that multiple arrays can be plotted simultaneously.
 
 # Display a plot of two arrays #
 def show_plot(xarray, yarray, xlabel: str='x', ylabel: str='y', title: str=""):
@@ -168,9 +169,8 @@ def read_directory(dir_name):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parser that accepts configuration file name')
-    parser.add_argument('--json-file', '-f',
-                        metavar='<file>',
+    parser.add_argument('files', metavar='N',
                         nargs='+',
-                        help='Name of JSON file that contains axes data')
+                        help='JSON output file(s) with numeric array data')
     args = parser.parse_args()
-    read_files(args.json_file)
+    read_files(args.files)

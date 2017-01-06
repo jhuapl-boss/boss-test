@@ -34,7 +34,7 @@ System tests for downloading images via the Boss API. The BossImageSystemTest cl
     "image_invalid_test":[...],
     "image_cache_hit_test":[...],
     "image_throughput_size_test":[...],
-    "image_cache_miss_throughput_test":[...]
+    "image_position_throughput_test":[...]
   }
 ```
 
@@ -144,11 +144,11 @@ Because some of the region is cached on each operation, Boss should encounter a 
 - *accept* = Image file format.  If omitted, default is "image/png".
 - *channel* = Parameters for setting up a new channel for one system test instance.  If omitted, the class's default channel is used.
 
-#### image_throughput_cache_miss_test()
+#### image_throughput_position_test()
 Performs a sequence of requests for different images from the channel, expecting changes in the index along one or more coordinate axes. If a "delta" is given for an axis, then each sequential read will translate along that axis by that amount.  For example, if an axis is given "start:stop:delta", then the index will be move from "start" to "stop", incrementing by "delta".
 
 ```
-"image_throughput_cache_miss_test":[
+"image_throughput_position_test":[
   {
     "orientation":<string>, /* required */
     "x_arg":<int> or [<int>, <int>] or [<int>, <int>, <int>],   /* required */

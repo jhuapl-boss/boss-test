@@ -19,10 +19,10 @@ import requests
 import time
 import systemtest
 from utils import boss_test_utils, numpy_utils, plot_utils
-from tests import sys_test_boss
+from tests import sys_test_boss__base
 
 
-class BossTileSystemTest(sys_test_boss.BossSystemTest):
+class BossTileSystemTest(sys_test_boss__base.BossSystemTest):
     """ System tests for the Boss tile service API, testing different read patterns.
     Properties (inherited):
         class_config    Static class dictionary (inherited from SystemTest)
@@ -150,7 +150,7 @@ class BossTileSystemTest(sys_test_boss.BossSystemTest):
         format_accept = str(self.parameters['accept']) if 'accept' in params else 'image/png'
         resolution = int(params['resolution']) if 'resolution' in params else 0
         self.do_tile_behavior(index_list, orientation, format_accept, resolution)
-        pass
+        return
 
     @systemtest.systemtestmethod
     @unittest.expectedFailure
@@ -171,7 +171,7 @@ class BossTileSystemTest(sys_test_boss.BossSystemTest):
                     self.assertEqual(int(params['status']), error.response.status_code)
                 else:
                     raise error
-        pass
+        return
 
     @systemtest.systemtestmethod
     def tile_cache_hit_test(self, params=None):
@@ -187,7 +187,7 @@ class BossTileSystemTest(sys_test_boss.BossSystemTest):
         format_accept = str(self.parameters['accept']) if 'accept' in params else 'image/png'
         resolution = int(params['resolution']) if 'resolution' in params else 0
         self.do_tile_behavior(index_list, orientation, format_accept, resolution)
-        pass
+        return
 
     @systemtest.systemtestmethod
     def tile_throughput_size_test(self, params=None):
@@ -202,10 +202,10 @@ class BossTileSystemTest(sys_test_boss.BossSystemTest):
         format_accept = str(self.parameters['accept']) if 'accept' in params else 'image/png'
         resolution = int(params['resolution']) if 'resolution' in params else 0
         self.do_tile_behavior(index_list, orientation, format_accept, resolution)
-        pass
+        return
 
     @systemtest.systemtestmethod
-    def tile_throughput_cache_miss_test(self, params=None):
+    def tile_throughput_position_test(self, params=None):
         """ System test case:
         """
         if not params:
@@ -217,4 +217,4 @@ class BossTileSystemTest(sys_test_boss.BossSystemTest):
         format_accept = str(self.parameters['accept']) if 'accept' in params else 'image/png'
         resolution = int(params['resolution']) if 'resolution' in params else 0
         self.do_tile_behavior(index_list, orientation, format_accept, resolution)
-        pass
+        return

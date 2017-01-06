@@ -64,3 +64,7 @@ def array_reduce(values, get_delta=False):
     else:
         raise TypeError('array_reduce() input must be a list or tuple.')
     return vals_out
+
+
+def array_match_percentage(array1, array2):
+    return numpy.mean(array1 == array2)
