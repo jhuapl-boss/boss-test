@@ -1,0 +1,50 @@
+{
+  "SimpleBossCutoutTest":
+  {
+    "unit_size":[128, 128, 8, 1],
+    "step_size":[0, 128, 0, 0],
+    "steps":20,
+    "one_cutout_test":[
+      {"cuboid_align":0, "cache_hit":0},
+      {"cuboid_align":1, "cache_hit":0},
+      {"cuboid_align":0, "cache_hit":1},
+      {"cuboid_align":1, "cache_hit":1}
+    ],
+    "invalid_cutout_test":[
+      {"cuboid_align":0, "cache_hit":0},
+      {"cuboid_align":1, "cache_hit":0},
+      {"cuboid_align":0, "cache_hit":1},
+      {"cuboid_align":1, "cache_hit":1}
+    ],
+    "multiple_cutout_test":[
+      {"cuboid_align":0, "cache_hit":0},
+      {"cuboid_align":1, "cache_hit":0},
+      {"cuboid_align":0, "cache_hit":1},
+      {"cuboid_align":1, "cache_hit":1}
+    ]
+  },
+  "SimpleBossImageTest":
+  {
+    "unit_size":[128, 128, 8, 1],
+    "step_size":[0, 128, 8, 0],
+    "steps":20,
+    "one_image_test":[
+      {"cuboid_align":0, "cache_hit":0},
+      {"cuboid_align":1, "cache_hit":0},
+      {"cuboid_align":0, "cache_hit":1},
+      {"cuboid_align":1, "cache_hit":1}
+    ],
+    "invalid_image_test":[
+      {"cuboid_align":0, "cache_hit":0},
+      {"cuboid_align":1, "cache_hit":0},
+      {"cuboid_align":0, "cache_hit":1},
+      {"cuboid_align":1, "cache_hit":1}
+    ],
+    "multiple_image_test":[
+      {"cuboid_align":0, "cache_hit":0},
+      {"cuboid_align":1, "cache_hit":0},
+      {"cuboid_align":0, "cache_hit":1},
+      {"cuboid_align":1, "cache_hit":1}
+    ]
+  }
+}

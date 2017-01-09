@@ -34,7 +34,7 @@ System tests for downloading tiles via the Boss API. The BossTileSystemTest clas
     "tile_invalid_test":[...],
     "tile_cache_hit_test":[...],
     "tile_throughput_size_test":[...],
-    "tile_position_throughput_test":[...]
+    "tile_cache_miss_throughput_test":[...]
   }
 ```
 
@@ -150,11 +150,11 @@ If a "delta" is given for an axis, then each sequential read will translate alon
 - *accept* = Image file format.  If omitted, default is "image/png".
 - *channel* = Parameters for setting up a new channel for one system test instance.  If omitted, the class's default channel is used.
 
-#### tile_throughput_position_test()
+#### tile_throughput_cache_miss_test()
 Performs a sequence of requests for different tiles from the channel, expecting changes in the index along one or more coordinate axes. If a "delta" is given for an axis, then each sequential read will translate along that axis by that amount.  For example, if an axis is given "start:stop:delta", then the index will be move from "start" to "stop", incrementing by "delta".
 
 ```
-"tile_throughput_position_test":[
+"tile_throughput_cache_miss_test":[
   {
     "tile_size":<int>, /* required */
     "orientation":<string>, /* required */
