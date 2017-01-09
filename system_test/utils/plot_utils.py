@@ -22,6 +22,7 @@ else:
     from utils import json_utils
 import matplotlib.pyplot as pyplot
 
+
 PLOT_KEY = '_PLOT_'
 
 # Todo: Allow y-axis to be list of names, so that multiple arrays can be plotted simultaneously.
