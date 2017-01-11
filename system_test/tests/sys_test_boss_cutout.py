@@ -326,62 +326,66 @@ class BossCutoutSystemTest(sys_test_boss__base.BossSystemTest):
         }
         return
 
-    # Todo: Move cutout position and increase size
-    # @systemtest.systemtestmethod
-    # def cutout_write_throughput_cache_miss_test(self, params=None):
-    #     """
-    #     """
-    #     if not params:
-    #         params = self.parameters
-    #     self.validate_params(params, is_constant_range=False)
-    #     coordinates_list = self.get_coordinates_list(params)
-    #     self.assertGreater(len(coordinates_list), 1, 'Given fixed cutout dimensions, expected changing coordinates')
-    #     resolution = int(params['resolution']) if 'resolution' in params else 0
-    #     ax = ['x_range', 'y_range', 'z_range', 'time_range']
-    #     for d in range(0, len(ax)):
-    #         # Determine if we should iterate on this axis
-    #         if ax[d] in params and len(params[ax[d]]) >= 3:
-    #             for c in range(1, len(coordinates_list)):
-    #                 sz = abs(coordinates_list[c][d][1] - coordinates_list[c][d][0])
-    #                 if coordinates_list[c][d][0] < coordinates_list[c][d][1]:
-    #                     coordinates_list[c][d][0] = coordinates_list[c-1][d][1]
-    #                     coordinates_list[c][d][1] = coordinates_list[c][d][0] + sz
-    #                 else:
-    #                     coordinates_list[c][d][1] = coordinates_list[c-1][d][0]
-    #                     coordinates_list[c][d][0] = coordinates_list[c][d][1] - sz
-    #     self.do_cutout_behavior('write', coordinates_list, resolution)
-    #     self.result[plot_utils.PLOT_KEY] = {
-    #         'title': 'Write throughput, growing and moving cutouts',
-    #         'x': ''
-    #     }
-    #     return
+    @systemtest.systemtestmethod
+    def cutout_write_throughput_size_position_test(self, params=None):
+        """
+        Cutout test where cuboid selection increases in size and moves along the axis. If it increases in size along
+        an axis, then it also moves in position along that axis. Uploads a cuboid from each set of coordinates
+        and records the duration of the upload.
+        """
+        if not params:
+            params = self.parameters
+        self.validate_params(params, is_constant_range=False)
+        coordinates_list = self.get_coordinates_list(params)
+        self.assertGreater(len(coordinates_list), 1, 'Given fixed cutout dimensions, expected changing coordinates')
+        resolution = int(params['resolution']) if 'resolution' in params else 0
+        ax = ['x_range', 'y_range', 'z_range', 'time_range']
+        for d in range(0, len(ax)):
+            # Determine if we should iterate on this axis
+            if ax[d] in params and len(params[ax[d]]) >= 3:
+                for c in range(1, len(coordinates_list)):
+                    sz = abs(coordinates_list[c][d][1] - coordinates_list[c][d][0])
+                    if coordinates_list[c][d][0] < coordinates_list[c][d][1]:
+                        coordinates_list[c][d][0] = coordinates_list[c-1][d][1]
+                        coordinates_list[c][d][1] = coordinates_list[c][d][0] + sz
+                    else:
+                        coordinates_list[c][d][1] = coordinates_list[c-1][d][0]
+                        coordinates_list[c][d][0] = coordinates_list[c][d][1] - sz
+        self.do_cutout_behavior('write', coordinates_list, resolution)
+        self.result[plot_utils.PLOT_KEY] = {
+            'title': 'Write throughput, growing and moving cutouts',
+            'x': ''
+        }
+        return
 
-    # Todo: Move cutout position and increase size
-    # @systemtest.systemtestmethod
-    # def cutout_read_throughput_cache_miss_test(self, params=None):
-    #     """
-    #     """
-    #     if not params:
-    #         params = self.parameters
-    #     self.validate_params(params, is_constant_range=False)
-    #     coordinates_list = self.get_coordinates_list(params)
-    #     self.assertGreater(len(coordinates_list), 1, 'Given fixed cutout dimensions, expected changing coordinates')
-    #     resolution = int(params['resolution']) if 'resolution' in params else 0
-    #     ax = ['x_range', 'y_range', 'z_range', 'time_range']
-    #     for d in range(0, len(ax)):
-    #         # Determine if we should iterate on this axis
-    #         if ax[d] in params and len(params[ax[d]]) >= 3:
-    #             for c in range(1, len(coordinates_list)):
-    #                 sz = abs(coordinates_list[c][d][1] - coordinates_list[c][d][0])
-    #                 if coordinates_list[c][d][0] < coordinates_list[c][d][1]:
-    #                     coordinates_list[c][d][0] = coordinates_list[c-1][d][1]
-    #                     coordinates_list[c][d][1] = coordinates_list[c][d][0] + sz
-    #                 else:
-    #                     coordinates_list[c][d][1] = coordinates_list[c-1][d][0]
-    #                     coordinates_list[c][d][0] = coordinates_list[c][d][1] - sz
-    #     self.do_cutout_behavior('read', coordinates_list, resolution)
-    #     self.result[plot_utils.PLOT_KEY] = {
-    #         'title': 'Read throughput, growing and moving cutouts',
-    #         'x': ''
-    #     }
-    #     return
+    @systemtest.systemtestmethod
+    def cutout_read_throughput_size_position_test(self, params=None):
+        """
+        Cutout test where cuboid selection increases in size and moves along the axis. If it increases in size along
+        an axis, then it also moves in position along that axis. Downloads a cuboid from each set of coordinates
+        and records the duration of the download.
+        """
+        if not params:
+            params = self.parameters
+        self.validate_params(params, is_constant_range=False)
+        coordinates_list = self.get_coordinates_list(params)
+        self.assertGreater(len(coordinates_list), 1, 'Given fixed cutout dimensions, expected changing coordinates')
+        resolution = int(params['resolution']) if 'resolution' in params else 0
+        ax = ['x_range', 'y_range', 'z_range', 'time_range']
+        for d in range(0, len(ax)):
+            # Determine if we should iterate on this axis
+            if ax[d] in params and len(params[ax[d]]) >= 3:
+                for c in range(1, len(coordinates_list)):
+                    sz = abs(coordinates_list[c][d][1] - coordinates_list[c][d][0])
+                    if coordinates_list[c][d][0] < coordinates_list[c][d][1]:
+                        coordinates_list[c][d][0] = coordinates_list[c-1][d][1]
+                        coordinates_list[c][d][1] = coordinates_list[c][d][0] + sz
+                    else:
+                        coordinates_list[c][d][1] = coordinates_list[c-1][d][0]
+                        coordinates_list[c][d][0] = coordinates_list[c][d][1] - sz
+        self.do_cutout_behavior('read', coordinates_list, resolution)
+        self.result[plot_utils.PLOT_KEY] = {
+            'title': 'Read throughput, growing and moving cutouts',
+            'x': ''
+        }
+        return

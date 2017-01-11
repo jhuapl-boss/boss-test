@@ -58,6 +58,12 @@
       {"x_range":[512,1024,64], "y_range":[512,1024], "z_range":[16,32], "time_range":[2,3]},
       {"x_range":[1024,2048], "y_range":[1024,2048,64], "z_range":[16,32]}
     ],
+    "cutout_read_throughput_size_position_test":[
+      {"x_range":[512,1024,64], "y_range":[512,1024], "z_range":[16,32]}
+    ],
+    "cutout_write_throughput_size_position_test":[
+      {"x_range":[512,1024,64], "y_range":[512,1024], "z_range":[16,32]}
+    ],
     "cutout_read_test":[
       {"x_range":[512,1024], "y_range":[512,1024], "z_range":[16,32]},
       {"x_range":[1024,2048], "y_range":[1024,2048], "z_range":[16,32]}

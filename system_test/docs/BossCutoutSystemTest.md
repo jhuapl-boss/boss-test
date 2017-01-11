@@ -171,6 +171,7 @@ Because some of the region is cached on each operation, Boss should encounter a 
 
 Expects the same parameters as *cutout_read_throughput_size_test()*.
 
+
 ---
 #### cutout_read_throughput_position_test()
 Sequence of consecutive reads of cutouts along one or more coordinate axes. If a "delta" is given for an axis, then each sequential read will shift along that axis by that amount; the size of the cutout is the same.  For example, if an axis is given "start:stop:delta", then the ranges will be at [start, start+delta], then [start+delta, start+2xdelta], and so on, up to [stop-delta, stop].
@@ -206,3 +207,14 @@ Sequence of consecutive uploads of cutouts that translate along one or more coor
 This test is expected to traverse a large region of the coordinate frame, eventually forcing Boss to encounter a full cache miss. The duration of each write is recorded.
 
 Expects the same parameters as *cutout_read_throughput_position_test()*.
+
+---
+#### cutout_write_throughput_size_position_test()
+Sequence of consecutive uploads of cutouts that increase in size and translate along one or more coordinate axes. If a "delta" is given for an axis, then each sequential read will increase in size along that axis. The starting position of each cutout is incremented by the size of the cutout; for example, if the cutouts expand on the x-axis, then their start positions also move along the x-axis.
+This test is expected to traverse a large region of the coordinate frame, eventually forcing Boss to encounter a full cache miss. The duration of each write is recorded.
+
+Expects the same parameters as *cutout_read_throughput_position_test()*.
+
+---
+#### cutout_read_throughput_size_position_test()
+Similar to *cutout_write_throughput_size_position_test()*, but performs downloads instead of uploads.
