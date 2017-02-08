@@ -4,6 +4,8 @@ import argparse
 import json
 import io
 import zipfile
+import time
+import asyncio
 
 from contextlib import contextmanager
 from random import randrange, sample
@@ -117,6 +119,22 @@ def gen_results(total, seq):
         yield gen_url(*s)
 
 @contextmanager
+def create_queue(session):
+    sqs = session.resource('sqs')
+    client = session.client('sqs')
+    resp = client.create_queue(QueueName = 'AutoScaleTest',
+                               Attributes = {
+                               })
+
+    try:
+        url = resp['QueueUrl']
+        yield sqs.Queue(url)
+    finally:
+        resp = client.delete_queue(QueueUrl = resp['QueueUrl'])
+        print("Waiting 60 seconds for queue to be deleted")
+        time.sleep(60)
+
+@contextmanager
 def create_role(session):
     policy = {
         'Version': '2012-10-17',
@@ -126,14 +144,44 @@ def create_role(session):
                 'Service': 'lambda.amazonaws.com',
             },
             'Action': 'sts:AssumeRole',
-            }]
+        }]
     }
     client = session.client('iam')
     resp = client.create_role(RoleName = 'AutoScaleTest',
                               AssumeRolePolicyDocument = json.dumps(policy))
+    role_arn = resp['Role']['Arn']
 
     try:
-        yield resp['Role']['Arn']
+        policy = {
+            'Version': '2012-10-17',
+            'Statement': [{
+                'Effect': 'Allow',
+                'Action': [
+                    'sqs:SendMessage',
+                ],
+                'Resource': [
+                    '*'
+                ],
+            }]
+        }
+
+        resp = client.create_policy(PolicyName = 'AutoScaleTest',
+                                    PolicyDocument = json.dumps(policy))
+        policy_arn = resp['Policy']['Arn']
+
+        try:
+            resp = client.attach_role_policy(RoleName = 'AutoScaleTest',
+                                             PolicyArn = policy_arn)
+
+            try:
+                time.sleep(6) # wait for role to become avalable to lambda)))
+
+                yield role_arn
+            finally:
+                resp = client.detach_role_policy(RoleName = 'AutoScaleTest',
+                                                 PolicyArn = policy_arn)
+        finally:
+            resp = client.delete_policy(PolicyArn = policy_arn)
     finally:
         resp = client.delete_role(RoleName = 'AutoScaleTest')
 
@@ -144,7 +192,9 @@ def create_lambda(session, role):
 
     code = io.BytesIO()
     archive = zipfile.ZipFile(code, mode='w')
-    archive.writestr('index.py', lambda_code)
+    archive_file = zipfile.ZipInfo('index.py')
+    archive_file.external_attr = 0o777 << 16
+    archive.writestr(archive_file, lambda_code)
     archive.close()
     lambda_code = code.getvalue()
 
@@ -199,6 +249,7 @@ if __name__ == '__main__':
                       region_name = creds.get('aws_region', 'us-east-1'))
 
     # Generate the unique target channels
+    print("Generating URLs")
     urls = gen_urls(args)
     if args.unique:
         if args.unique >= len(urls):
@@ -213,16 +264,52 @@ if __name__ == '__main__':
 
     # Split urls into groups for each lambda
     results = [results[i::args.lambdas] for i in range(args.lambdas)]
+    print("\tComplete")
 
+    print("Creating AWS Resources")
     client = session.client('lambda')
-    with create_role(session) as role:
-        with create_lambda(session, role) as target:
-            for urls in results:
-                args = {'token':args.token, 'urls':urls}
-                resp = client.invoke(FunctionName = 'AutoScaleTest',
-                                     InvocationType = 'Event',
-                                     LogType = 'None',
-                                     Payload = args.encode('utf-8'))
-                print(resp)
-            input("press any key to delete lambda")
+    with create_queue(session) as queue:
+        with create_role(session) as role:
+            with create_lambda(session, role) as target:
+                print("\tComplete")
+                for i in range(args.lambdas):
+                    print("{:7.2%} Launching lambdas\r".format(i/args.lambdas), end='', flush=True)
+                    lambda_args = {'token':args.token, 'queue':queue.url, 'urls': results[i]}
+                    resp = client.invoke(FunctionName = 'AutoScaleTest',
+                                         InvocationType = 'Event',
+                                         #LogType = 'None',
+                                         Payload = json.dumps(lambda_args).encode('utf-8'))
+                    #print(resp)
+                print("Finished launching lambdas")
+
+                total_bytes = 0
+                total_seconds = 0
+                total_errors = 0
+                try:
+                    for i in range(args.total):
+                        print("{:7.2%} Waiting for messages\r".format(i/args.total), end='', flush=True)
+
+                        msg = queue.receive_messages(WaitTimeSeconds=20)
+                        if len(msg) == 0:
+                            print("Could not get message {}          ".format(i))
+                            continue
+                        msg = msg[0]
+                        queue.delete_messages(Entries = [{'Id':'X', 'ReceiptHandle': msg.receipt_handle}])
+                        msg = json.loads(msg.body)
+                        if 'error' in msg:
+                            total_errors += 1
+                        else:
+                            total_bytes += msg['bytes']
+                            total_seconds += (msg['read_stop'] - msg['req_start'])
+                    print("Finished waiting for messages")
+                    print()
+
+                    input("press any key to delete lambda")
+                finally:
+                    # Always print, even if there was a CTRL+C
+                    print()
+                    print("Received {:,} messages".format(args.total))
+                    print("Number of errors {:,}".format(total_errors))
+                    print("Throughput {:,} b/s".format(int(total_bytes / total_seconds)))
+                    print()
 
