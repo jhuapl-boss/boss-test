@@ -44,6 +44,7 @@ def handler(event, context):
 
     headers = {
         'Authorization': 'Token {}'.format(token),
+        'Accept': 'application/blosc',
     }
 
     for url in urls:
