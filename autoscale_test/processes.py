@@ -3,10 +3,12 @@ import signal
 import time
 
 from boto3.session import Session
+from botocore.client import Config
 
 def launch_lambda(queue, session_args, token, urls):
     session = Session(**session_args)
-    client = session.client('lambda')
+    config = Config(read_timeout = 60 * 5)
+    client = session.client('lambda', config = config)
 
     lambda_args = {'token':token, 'queue':queue, 'urls':urls}
     resp = client.invoke(FunctionName = 'AutoScaleTest',
