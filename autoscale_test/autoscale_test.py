@@ -3,7 +3,6 @@ import sys
 import argparse
 import json
 import time
-import signal
 
 from random import sample
 from multiprocessing import Pool
@@ -83,7 +82,7 @@ if __name__ == '__main__':
                 
                 lambda_args = [(queue.url, session_args, args.token, r) for r in results]
                 #pool.starmap(launch_lambda, lambda_args)
-                lambdas = pool.starmap_async(launch_lambda, lambda_args)
+                lambdas = tpool.starmap_async(launch_lambda, lambda_args)
                 print("Finished launching lambdas")
 
                 total_bytes = 0
@@ -123,9 +122,12 @@ if __name__ == '__main__':
                     pass
                 finally:
                     print("Lambda results")
-                    for res in lambdas.get():
-                        if res != b'null':
-                            print(res)
+                    try:
+                        for res in lambdas.get():
+                            if res != b'null':
+                                print(res)
+                    except Exception as e:
+                        print(e)
                     print()
                     tpool.terminate()
                     pool.terminate()
