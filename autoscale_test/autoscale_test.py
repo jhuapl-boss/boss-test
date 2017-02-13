@@ -5,8 +5,10 @@ import json
 import io
 import zipfile
 import time
-import asyncio
+import signal
 
+from multiprocessing import Pool
+from multiprocessing.pool import ThreadPool
 from contextlib import contextmanager
 from random import randrange, sample
 from boto3.session import Session
@@ -45,69 +47,73 @@ def gen_urls(args):
     boss = BossRemote(config)
     results = []
 
-    if args.collection is not None:
-        collections = [args.collection]
-    else:
-        collections = boss.list_collections()
-
-    for collection in collections:
-        if args.experiment is not None:
-            experiments = [args.experiment]
+    try:
+        if args.collection is not None:
+            collections = [args.collection]
         else:
-            experiments = boss.list_experiments(collection)
+            collections = boss.list_collections()
 
-        for experiment in experiments:
-            if args.channel is not None:
-                channels = [args.channel]
+        for collection in collections:
+            if args.experiment is not None:
+                experiments = [args.experiment]
             else:
-                channels = boss.list_channels(collection, experiment)
+                experiments = boss.list_experiments(collection)
 
-            exp = ExperimentResource(name = experiment,
-                                     collection_name = collection)
-            exp = boss.get_project(exp)
-
-            coord = CoordinateFrameResource(name = exp.coord_frame)
-            coord = boss.get_project(coord)
-
-            for channel in channels:
-                ch = ChannelResource(name = channel,
-                                     experiment_name = experiment,
-                                     collection_name = collection)
-                ch = boss.get_project(ch)
-
-                def check_range(name, var, start, stop):
-                    start_, stop_ = map(int, var.split(':'))
-                    if start_ < start:
-                        fmt = "{} range start for {}/{}/{} is less than the coordinate frame, setting to minimum"
-                        print(fmt.format(name, collection, experiment, channel))
-                        start_ = start
-                    if stop_ > stop:
-                        fmt = "{} range stop for {}/{}/{} is greater than the coordinate frame, setting to maximum"
-                        print(fmt.format(name, collection, experiment, channel))
-                        stop_ = stop
-                    return '{}:{}'.format(start_, stop_)
-
-                if args.x_range:
-                    x = check_range('X', args.x_range, coord.x_start, coord.x_stop)
+            for experiment in experiments:
+                if args.channel is not None:
+                    channels = [args.channel]
                 else:
-                    x = (coord.x_start, coord.x_stop, args.min, args.max)
+                    channels = boss.list_channels(collection, experiment)
 
-                if args.y_range:
-                    y = check_range('Y', args.y_range, coord.y_start, coord.y_stop)
-                else:
-                    y = (coord.y_start, coord.y_stop, args.min, args.max)
+                exp = ExperimentResource(name = experiment,
+                                         collection_name = collection)
+                exp = boss.get_project(exp)
 
-                if args.z_range:
-                    z = check_range('Z', args.z_range, coord.z_start, coord.z_stop)
-                else:
-                    z = (coord.z_start, coord.z_stop, args.min, args.max)
+                coord = CoordinateFrameResource(name = exp.coord_frame)
+                coord = boss.get_project(coord)
 
-                # Arguments to gen_url
-                results.append((args.hostname,
-                                collection,
-                                experiment,
-                                channel,
-                                0, x, y, z, None))
+                for channel in channels:
+                    ch = ChannelResource(name = channel,
+                                         experiment_name = experiment,
+                                         collection_name = collection)
+                    ch = boss.get_project(ch)
+
+                    def check_range(name, var, start, stop):
+                        start_, stop_ = map(int, var.split(':'))
+                        if start_ < start:
+                            fmt = "{} range start for {}/{}/{} is less than the coordinate frame, setting to minimum"
+                            print(fmt.format(name, collection, experiment, channel))
+                            start_ = start
+                        if stop_ > stop:
+                            fmt = "{} range stop for {}/{}/{} is greater than the coordinate frame, setting to maximum"
+                            print(fmt.format(name, collection, experiment, channel))
+                            stop_ = stop
+                        return '{}:{}'.format(start_, stop_)
+
+                    if args.x_range:
+                        x = check_range('X', args.x_range, coord.x_start, coord.x_stop)
+                    else:
+                        x = (coord.x_start, coord.x_stop, args.min, args.max)
+
+                    if args.y_range:
+                        y = check_range('Y', args.y_range, coord.y_start, coord.y_stop)
+                    else:
+                        y = (coord.y_start, coord.y_stop, args.min, args.max)
+
+                    if args.z_range:
+                        z = check_range('Z', args.z_range, coord.z_start, coord.z_stop)
+                    else:
+                        z = (coord.z_start, coord.z_stop, args.min, args.max)
+
+                    # Arguments to gen_url
+                    results.append((args.hostname,
+                                    collection,
+                                    experiment,
+                                    channel,
+                                    0, x, y, z, None))
+    except Exception as e:
+        print("Error generating URLs: {}".format(e))
+
     return results
 
 def gen_results(total, seq):
@@ -186,7 +192,7 @@ def create_role(session):
         resp = client.delete_role(RoleName = 'AutoScaleTest')
 
 @contextmanager
-def create_lambda(session, role):
+def create_lambda(session, role, timeout):
     with open('lambda.py', 'r') as fh:
         lambda_code = fh.read().replace('"', '\"').replace('\\', '\\\\')
 
@@ -205,7 +211,7 @@ def create_lambda(session, role):
                                   Handler = 'index.handler',
                                   Code = {'ZipFile': lambda_code},
                                   Description = 'AutoScale test lambda',
-                                  Timeout = 60,
+                                  Timeout = timeout,
                                   MemorySize = 128) # MBs, multiple of 64
 
     try:
@@ -213,6 +219,51 @@ def create_lambda(session, role):
     finally:
         resp = client.delete_function(FunctionName = 'AutoScaleTest')
 
+def launch_lambda(queue, session_args, token, urls):
+    session = Session(**session_args)
+    client = session.client('lambda')
+
+    lambda_args = {'token':token, 'queue':queue, 'urls':urls}
+    resp = client.invoke(FunctionName = 'AutoScaleTest',
+                         #InvocationType = 'Event',
+                         #LogType = 'None',
+                         Payload = json.dumps(lambda_args).encode('utf-8'))
+    #print(resp)
+    #print(resp['Payload'].read())
+    return resp['Payload'].read()
+
+def aggregate(queue, session_args, timeout=60, retry=3):
+    signal.signal(signal.SIGINT, signal.SIG_IGN) # Ignore the KeyboardInterrupt
+    total_bytes = 0
+    total_seconds = 0
+    received_count = 0
+    errors = []
+
+    session = Session(**session_args)
+    sqs = session.resource('sqs')
+    queue = sqs.Queue(queue)
+
+    start = time.time()
+    current = time.time()
+    #print("Aggregating results")
+    while retry > 0:# or int(current - start) < timeout:
+        msgs = queue.receive_messages(WaitTimeSeconds=20, MaxNumberOfMessages=10)
+        if len(msgs) == 0:
+            #print("\tretry")
+            retry -= 1
+            continue
+        print('.', end='', flush=True)
+        for msg in msgs:
+            queue.delete_messages(Entries = [{'Id':'X', 'ReceiptHandle': msg.receipt_handle}])
+            received_count += 1
+            msg = json.loads(msg.body)
+            if 'error' in msg:
+                errors.append(msg['error'])
+            else:
+                total_bytes += msg['bytes']
+                total_seconds += (msg['read_stop'] - msg['req_start'])
+        current = time.time()
+    return (received_count, (total_bytes, total_seconds), errors)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = "BOSS API Autoscale Test Script",
@@ -244,13 +295,18 @@ if __name__ == '__main__':
         sys.exit(1)
 
     creds = json.load(args.aws_credentials)
-    session = Session(aws_access_key_id = creds['aws_access_key'],
-                      aws_secret_access_key = creds['aws_secret_key'],
-                      region_name = creds.get('aws_region', 'us-east-1'))
+    session_args = {
+        'aws_access_key_id' : creds['aws_access_key'],
+        'aws_secret_access_key' : creds['aws_secret_key'],
+        'region_name' : creds.get('aws_region', 'us-east-1'),
+    }
+    session = Session(**session_args)
 
     # Generate the unique target channels
     print("Generating URLs")
     urls = gen_urls(args)
+    if len(urls) == 0:
+        sys.exit(1)
     if args.unique:
         if args.unique >= len(urls):
             print("Only {} unique urls, not using --unique argument".format(len(urls)))
@@ -270,46 +326,73 @@ if __name__ == '__main__':
     client = session.client('lambda')
     with create_queue(session) as queue:
         with create_role(session) as role:
-            with create_lambda(session, role) as target:
+            lambda_timeout = 60 * 5
+            with create_lambda(session, role, lambda_timeout) as target:
                 print("\tComplete")
-                for i in range(args.lambdas):
-                    print("{:7.2%} Launching lambdas\r".format(i/args.lambdas), end='', flush=True)
-                    lambda_args = {'token':args.token, 'queue':queue.url, 'urls': results[i]}
-                    resp = client.invoke(FunctionName = 'AutoScaleTest',
-                                         InvocationType = 'Event',
-                                         #LogType = 'None',
-                                         Payload = json.dumps(lambda_args).encode('utf-8'))
-                    #print(resp)
+                tpool = Pool(processes = args.lambdas)
+                pool = Pool(processes = min(args.lambdas, 10))
+                
+                lambda_args = [(queue.url, session_args, args.token, r) for r in results]
+                #pool.starmap(launch_lambda, lambda_args)
+                lambdas = pool.starmap_async(launch_lambda, lambda_args)
                 print("Finished launching lambdas")
 
                 total_bytes = 0
                 total_seconds = 0
-                total_errors = 0
+                total_time = 0
+                received_count = 0
+                errors = []
                 try:
-                    for i in range(args.total):
-                        print("{:7.2%} Waiting for messages\r".format(i/args.total), end='', flush=True)
 
-                        msg = queue.receive_messages(WaitTimeSeconds=20)
-                        if len(msg) == 0:
-                            print("Could not get message {}          ".format(i))
-                            continue
-                        msg = msg[0]
-                        queue.delete_messages(Entries = [{'Id':'X', 'ReceiptHandle': msg.receipt_handle}])
-                        msg = json.loads(msg.body)
-                        if 'error' in msg:
-                            total_errors += 1
-                        else:
-                            total_bytes += msg['bytes']
-                            total_seconds += (msg['read_stop'] - msg['req_start'])
-                    print("Finished waiting for messages")
+                    def dup(count, *args):
+                        results = []
+                        for i in range(count):
+                            results.append(args)
+                        return results
+                    
+                    start = time.time()
+                    print("Waiting for messages", end='', flush=True)
+
+                    #while received_count < args.total or not lambdas.ready():
+                    while not lambdas.ready():
+                        results = pool.starmap(aggregate, dup(pool._processes, queue.url, session_args, 60))
+                        for count, (bytes_, seconds), errors_ in results:
+                            received_count += count
+                            total_bytes += bytes_
+                            total_seconds += seconds
+                            errors.extend(errors_)
+                        print("\nReceived {} messages".format(received_count), flush=True)
+                        print("Lambdas finished? {}".format(lambdas.ready()), flush=True)
+
+                    print("Finished waiting for messages", flush=True)
                     print()
+                    total_time = time.time() - start
 
-                    input("press any key to delete lambda")
+
+                    #input("press any key to delete lambda")
+                except KeyboardInterrupt:
+                    pass
                 finally:
+                    print("Lambda results")
+                    for res in lambdas.get():
+                        if res != b'null':
+                            print(res)
+                    print()
+                    tpool.terminate()
+                    pool.terminate()
                     # Always print, even if there was a CTRL+C
                     print()
-                    print("Received {:,} messages".format(args.total))
-                    print("Number of errors {:,}".format(total_errors))
-                    print("Throughput {:,} b/s".format(int(total_bytes / total_seconds)))
+                    print("Elapsed time: {} seconds".format(total_time))
+                    print("Received {:,} messages".format(received_count))
+                    print("Number of errors {:,}".format(len(errors)))
+                    keys = set(errors)
+                    values = list(errors)
+                    for key in keys:
+                        print("\t{} x '{}'".format(values.count(key), key))
+                    if total_seconds == 0:
+                        print("Zero seconds of data recorded")
+                    else:
+                        print("Throughput {:,} b/s".format(int(total_bytes / total_seconds)))
                     print()
 
+                input("Press any key to cleanup")

@@ -7,10 +7,11 @@ from urllib import urlencode
 
 def request(queue, url, headers = {}):
     msg = {'start': now()}
-    req = Request(url,
-                  headers = headers)
 
     try:
+        req = Request(url,
+                      headers = headers)
+
         msg['req_start'] = now()
         resp = urlopen(req)
         msg['read_start'] = msg['req_stop'] = now()
@@ -23,10 +24,16 @@ def request(queue, url, headers = {}):
         msg['code'] = e.code
         msg['error'] = str(e)
         msg['error_stop'] = now()
+    except Exception as e:
+        msg['error'] = str(e)
 
     msg['stop'] = now()
 
-    queue.send_message(MessageBody = json.dumps(msg))
+    try:
+        queue.send_message(MessageBody = json.dumps(msg))
+    except Exception as e:
+        print("{}: {}".format(e, msg))
+
 
 def handler(event, context):
     token = event['token']
