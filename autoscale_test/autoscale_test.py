@@ -141,7 +141,14 @@ if __name__ == '__main__':
                     if total_seconds == 0:
                         print("Zero seconds of data recorded")
                     else:
-                        print("Throughput {:,} b/s".format(int(total_bytes / total_seconds)))
+                        rate = total_bytes / total_seconds
+                        units = 'b/s'
+                        for unit in ['Kb/s', 'Mb/s', 'Gb/s', 'Tb/s']:
+                            if rate > 1024:
+                                rate = rate / 1024
+                                units = unit
+
+                        print("Throughput {:,} {}".format(int(rate), units))
                     print()
 
                 input("Press any key to cleanup")
