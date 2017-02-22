@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 import sys
 import argparse
@@ -12,6 +14,76 @@ from boto3.session import Session
 from cutouts import gen_urls, gen_results
 from resources import create_queue, create_role, create_lambda
 from processes import launch_lambda, aggregate
+
+def dup(count, *args):
+    results = []
+    for i in range(count):
+        results.append(args)
+    return results
+
+def enqueue_messages(url_queue, results):
+    for i in range(len(results)):
+        url_queue.send_message(MessageBody = results[i])
+        print("{:7.2%} Queuing URLs\r".format(i/len(results)), end='')
+    print("Finished queuing urls           ")
+
+def invoke_lambdas(args, count):
+    for i in range(count):
+        resp = client.invoke(FunctionName = 'AutoScaleTest',
+                             InvocationType = 'Event',
+                             Payload = json.dumps(args).encode('utf-8'))
+        print("{:7.2%} Launching Lambdas\r".format(i/count), end='')
+    print("Finished launching lambdas          ")
+
+def poll_messages(session_args, queue, lambda_count, total_count):
+    pool = Pool(processes = min(lambda_count, 10))
+    
+    total_bytes = 0
+    total_seconds = 0
+    total_time = 0
+    received_count = 0
+    errors = []
+    try:
+        start = time.time()
+        print("Waiting for messages", end='', flush=True)
+
+        while received_count < total_count:
+            results = pool.starmap(aggregate, dup(pool._processes, queue.url, session_args, 60))
+            for count, (bytes_, seconds), errors_ in results:
+                received_count += count
+                total_bytes += bytes_
+                total_seconds += seconds
+                errors.extend(errors_)
+            print("\nReceived {} messages".format(received_count), flush=True)
+
+        print("Finished waiting for messages", flush=True)
+        print()
+        total_time = time.time() - start
+    except KeyboardInterrupt:
+        pass
+    finally:
+        pool.terminate()
+        # Always print, even if there was a CTRL+C
+        print()
+        print("Elapsed time: {} seconds".format(total_time))
+        print("Received {:,} messages".format(received_count))
+        print("Number of errors {:,}".format(len(errors)))
+        keys = set(errors)
+        values = list(errors)
+        for key in keys:
+            print("\t{} x '{}'".format(values.count(key), key))
+        if total_seconds == 0:
+            print("Zero seconds of data recorded")
+        else:
+            rate = total_bytes / total_seconds
+            units = 'b/s'
+            for unit in ['Kb/s', 'Mb/s', 'Gb/s', 'Tb/s']:
+                if rate > 1024:
+                    rate = rate / 1024
+                    units = unit
+
+            print("Throughput {:,} {}".format(int(rate), units))
+        print()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = "BOSS API Autoscale Test Script",
@@ -65,92 +137,31 @@ if __name__ == '__main__':
 
     # Generate unique urls
     results = gen_results(args.total, urls)
-
-    # Split urls into groups for each lambda
-    results = [results[i::args.lambdas] for i in range(args.lambdas)]
     print("\tComplete")
 
     print("Creating AWS Resources")
     client = session.client('lambda')
-    with create_queue(session) as queue:
-        with create_role(session) as role:
-            lambda_timeout = 60 * 5
-            with create_lambda(session, role, lambda_timeout) as target:
-                print("\tComplete")
-                tpool = Pool(processes = args.lambdas)
-                pool = Pool(processes = min(args.lambdas, 10))
-                
-                lambda_args = [(queue.url, session_args, args.token, r) for r in results]
-                #pool.starmap(launch_lambda, lambda_args)
-                lambdas = tpool.starmap_async(launch_lambda, lambda_args)
-                print("Finished launching lambdas")
+    try:
+        with create_queue(session, 'AutoScaleTestResults') as queue:
+            with create_queue(session, 'AutoScaleTestUrls') as url_queue:
+                with create_role(session) as role:
+                    lambda_timeout = 60 * 5
+                    with create_lambda(session, role, lambda_timeout) as target:
+                        print("\tComplete")
 
-                total_bytes = 0
-                total_seconds = 0
-                total_time = 0
-                received_count = 0
-                errors = []
-                try:
+                        enqueue_messages(url_queue, results)
 
-                    def dup(count, *args):
-                        results = []
-                        for i in range(count):
-                            results.append(args)
-                        return results
-                    
-                    start = time.time()
-                    print("Waiting for messages", end='', flush=True)
+                        lambda_args = {
+                            'token': args.token,
+                            'queue': queue.url,
+                            'input': url_queue.url,
+                        }
+                        invoke_lambdas(lambda_args, args.lambdas)
 
-                    #while received_count < args.total or not lambdas.ready():
-                    while not lambdas.ready():
-                        results = pool.starmap(aggregate, dup(pool._processes, queue.url, session_args, 60))
-                        for count, (bytes_, seconds), errors_ in results:
-                            received_count += count
-                            total_bytes += bytes_
-                            total_seconds += seconds
-                            errors.extend(errors_)
-                        print("\nReceived {} messages".format(received_count), flush=True)
-                        print("Lambdas finished? {}".format(lambdas.ready()), flush=True)
+                        poll_messages(session_args, queue, args.lambdas, args.total)
 
-                    print("Finished waiting for messages", flush=True)
-                    print()
-                    total_time = time.time() - start
+                        input("Press any key to cleanup")
+    finally:
+        print("Waiting 60 seconds for queue to be deleted")
+        time.sleep(60)
 
-
-                    #input("press any key to delete lambda")
-                except KeyboardInterrupt:
-                    pass
-                finally:
-                    print("Lambda results")
-                    try:
-                        for res in lambdas.get():
-                            if res != b'null':
-                                print(res)
-                    except Exception as e:
-                        print(e)
-                    print()
-                    tpool.terminate()
-                    pool.terminate()
-                    # Always print, even if there was a CTRL+C
-                    print()
-                    print("Elapsed time: {} seconds".format(total_time))
-                    print("Received {:,} messages".format(received_count))
-                    print("Number of errors {:,}".format(len(errors)))
-                    keys = set(errors)
-                    values = list(errors)
-                    for key in keys:
-                        print("\t{} x '{}'".format(values.count(key), key))
-                    if total_seconds == 0:
-                        print("Zero seconds of data recorded")
-                    else:
-                        rate = total_bytes / total_seconds
-                        units = 'b/s'
-                        for unit in ['Kb/s', 'Mb/s', 'Gb/s', 'Tb/s']:
-                            if rate > 1024:
-                                rate = rate / 1024
-                                units = unit
-
-                        print("Throughput {:,} {}".format(int(rate), units))
-                    print()
-
-                input("Press any key to cleanup")

@@ -6,20 +6,21 @@ import json
 from contextlib import contextmanager
 
 @contextmanager
-def create_queue(session):
+def create_queue(session, name):
     sqs = session.resource('sqs')
     client = session.client('sqs')
-    resp = client.create_queue(QueueName = 'AutoScaleTest',
+    resp = client.create_queue(QueueName = name,
                                Attributes = {
                                })
 
+    url = resp['QueueUrl']
+
     try:
-        url = resp['QueueUrl']
         yield sqs.Queue(url)
     finally:
-        resp = client.delete_queue(QueueUrl = resp['QueueUrl'])
-        print("Waiting 60 seconds for queue to be deleted")
-        time.sleep(60)
+        resp = client.delete_queue(QueueUrl = url)
+        #print("Waiting 60 seconds for queue to be deleted")
+        #time.sleep(60)
 
 @contextmanager
 def create_role(session):
@@ -45,6 +46,8 @@ def create_role(session):
                 'Effect': 'Allow',
                 'Action': [
                     'sqs:SendMessage',
+                    'sqs:ReceiveMessage',
+                    'sqs:DeleteMessage',
                 ],
                 'Resource': [
                     '*'

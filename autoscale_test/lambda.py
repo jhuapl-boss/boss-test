@@ -37,17 +37,27 @@ def request(queue, url, headers = {}):
 
 def handler(event, context):
     token = event['token']
-    urls = event['urls']
+    #urls = event['urls']
 
     sqs = boto3.resource('sqs')
     queue = sqs.Queue(event['queue'])
+    input_queue = sqs.Queue(event['input'])
 
     headers = {
         'Authorization': 'Token {}'.format(token),
         'Accept': 'application/blosc',
     }
 
-    for url in urls:
-        request(queue, url,
-                headers = headers)
+    #for url in urls:
+    #    request(queue, url,
+    #            headers = headers)
+    retry = 2
+    while retry > 0:
+        msgs = input_queue.receive_messages(WaitTimeSeconds=20, MaxNumberOfMessages=1)
+        if len(msgs) == 0:
+            retry -= 1
+            continue
+        msg = msgs[0]
+        request(queue, msg.body, headers = headers)
+        input_queue.delete_messages(Entries=[{'Id':'X', 'ReceiptHandle': msg.receipt_handle}])
 
